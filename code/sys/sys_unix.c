@@ -48,6 +48,8 @@ static char homePath[ MAX_OSPATH ] = { 0 };
 uid_t saved_euid;
 #endif
 
+#ifndef IOS
+
 /*
 ==================
 Sys_DefaultHomePath
@@ -81,6 +83,8 @@ char *Sys_DefaultHomePath(void)
 
 	return homePath;
 }
+
+#endif /* !IOS */
 
 /*
 =================

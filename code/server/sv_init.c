@@ -622,6 +622,11 @@ void SV_SpawnServer( char *server, qboolean killBots ) {
 	}
 #endif
 
+#ifdef IOS
+	if ( !com_dedicated->integer )
+		Sys_ShowLANAddresses();
+#endif
+
 	Com_Printf ("-----------------------------------\n");
 }
 

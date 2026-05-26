@@ -1113,6 +1113,9 @@ qboolean	Sys_StringToAdr( const char *s, netadr_t *a, netadrtype_t family );
 
 qboolean	Sys_IsLANAddress (netadr_t adr);
 void		Sys_ShowIP(void);
+#ifdef IOS
+void		Sys_ShowLANAddresses( void );
+#endif
 
 FILE	*Sys_FOpen( const char *ospath, const char *mode );
 qboolean Sys_Mkdir( const char *path );
@@ -1121,7 +1124,7 @@ char	*Sys_Cwd( void );
 void	Sys_SetDefaultInstallPath(const char *path);
 char	*Sys_DefaultInstallPath(void);
 
-#ifdef MACOS_X
+#if defined(MACOS_X) || defined(IOS)
 char    *Sys_DefaultAppPath(void);
 #endif
 

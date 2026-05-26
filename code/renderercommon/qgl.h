@@ -27,6 +27,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef __QGL_H__
 #define __QGL_H__
 
+#if defined( USE_GLES ) || defined( IOS )
+#	include "qgl_gles.h"
+#else
+
 #ifdef USE_LOCAL_HEADERS
 #	include "SDL_opengl.h"
 #else
@@ -793,5 +797,7 @@ extern          HGLRC(APIENTRY * qwglCreateContextAttribsARB) (HDC hdC, HGLRC hS
 
 extern GLXContext	(APIENTRY * qglXCreateContextAttribsARB) (Display *dpy, GLXFBConfig config, GLXContext share_context, Bool direct, const int *attrib_list);
 #endif
+
+#endif /* !USE_GLES */
 
 #endif

@@ -319,4 +319,31 @@ void CL_cURL_PerformDownload(void)
 
 	CL_NextDownload();
 }
+#else /* !USE_CURL */
+
+#include "client.h"
+
+qboolean CL_cURL_Init( void )
+{
+	return qfalse;
+}
+
+void CL_cURL_Shutdown( void )
+{
+}
+
+void CL_cURL_BeginDownload( const char *localName, const char *remoteURL )
+{
+	(void)localName;
+	(void)remoteURL;
+}
+
+void CL_cURL_PerformDownload( void )
+{
+}
+
+void CL_cURL_Cleanup( void )
+{
+}
+
 #endif /* USE_CURL */

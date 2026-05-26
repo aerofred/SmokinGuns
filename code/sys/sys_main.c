@@ -108,6 +108,7 @@ char *Sys_DefaultInstallPath(void)
 		return Sys_Cwd();
 }
 
+#ifndef IOS
 /*
 =================
 Sys_DefaultAppPath
@@ -117,6 +118,7 @@ char *Sys_DefaultAppPath(void)
 {
 	return Sys_BinaryPath();
 }
+#endif
 
 /*
 =================
@@ -144,6 +146,8 @@ char *Sys_ConsoleInput(void)
 
 #ifdef DEDICATED
 #	define PID_FILENAME PRODUCT_NAME "_server.pid"
+#elif defined( IOS )
+#	define PID_FILENAME PRODUCT_SHORTNAME ".pid"
 #else
 #	define PID_FILENAME PRODUCT_NAME ".pid"
 #endif
@@ -262,9 +266,13 @@ cpuFeatures_t Sys_GetProcessorFeatures( void )
 #ifndef DEDICATED
 	if( SDL_HasRDTSC( ) )    features |= CF_RDTSC;
 	if( SDL_HasMMX( ) )      features |= CF_MMX;
+#	ifndef USE_SDL2
 	if( SDL_HasMMXExt( ) )   features |= CF_MMX_EXT;
+#	endif
 	if( SDL_Has3DNow( ) )    features |= CF_3DNOW;
+#	ifndef USE_SDL2
 	if( SDL_Has3DNowExt( ) ) features |= CF_3DNOW_EXT;
+#	endif
 	if( SDL_HasSSE( ) )      features |= CF_SSE;
 	if( SDL_HasSSE2( ) )     features |= CF_SSE2;
 	if( SDL_HasAltiVec( ) )  features |= CF_ALTIVEC;
@@ -648,10 +656,14 @@ void Sys_BinaryEngineComment( void ) {
 
 /*
 =================
-main
+main / Sys_AppMain (iOS entry via SDL_UIKitRunApp)
 =================
 */
+#if defined( IOS ) && !defined( DEDICATED )
+int Sys_AppMain( int argc, char **argv )
+#else
 int main( int argc, char **argv )
+#endif
 {
 	int   i;
 	char  commandLine[ MAX_STRING_CHARS ] = { 0 };
@@ -671,19 +683,34 @@ int main( int argc, char **argv )
 #	endif
 
 	// Run time
+#	ifdef USE_SDL2
+	SDL_version ver;
+	SDL_GetVersion( &ver );
+#	else
 	const SDL_version *ver = SDL_Linked_Version( );
+#	endif
 
 #define MINSDL_VERSION \
 	XSTRING(MINSDL_MAJOR) "." \
 	XSTRING(MINSDL_MINOR) "." \
 	XSTRING(MINSDL_PATCH)
 
+#	ifdef USE_SDL2
+	if( SDL_VERSIONNUM( ver.major, ver.minor, ver.patch ) <
+#	else
 	if( SDL_VERSIONNUM( ver->major, ver->minor, ver->patch ) <
+#	endif
 			SDL_VERSIONNUM( MINSDL_MAJOR, MINSDL_MINOR, MINSDL_PATCH ) )
 	{
+#	ifdef USE_SDL2
+		Sys_Dialog( DT_ERROR, va( "SDL version " MINSDL_VERSION " or greater is required, "
+			"but only version %d.%d.%d was found. You may be able to obtain a more recent copy "
+			"from http://www.libsdl.org/.", ver.major, ver.minor, ver.patch ), "SDL Library Too Old" );
+#	else
 		Sys_Dialog( DT_ERROR, va( "SDL version " MINSDL_VERSION " or greater is required, "
 			"but only version %d.%d.%d was found. You may be able to obtain a more recent copy "
 			"from http://www.libsdl.org/.", ver->major, ver->minor, ver->patch ), "SDL Library Too Old" );
+#	endif
 
 		Sys_Exit( 1 );
 	}

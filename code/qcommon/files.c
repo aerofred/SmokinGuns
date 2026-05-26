@@ -249,7 +249,7 @@ static	char		fs_gamedir[MAX_OSPATH];	// this will be a single file name with no 
 static	cvar_t		*fs_debug;
 static	cvar_t		*fs_homepath;
 
-#ifdef MACOS_X
+#if defined(MACOS_X) || defined(IOS)
 // Also search the .app bundle for .pk3 files
 static	cvar_t		*fs_apppath;
 #endif
@@ -565,7 +565,8 @@ static void FS_CheckFilenameIsMutable( const char *filename,
 		const char *function )
 {
 	// Check if the filename ends with the library, QVM, or pk3 extension
-	if( COM_CompareExtension( filename, DLL_EXT )
+	// iOS defines DLL_EXT as "" (no dynamic libs); empty ext matches every path.
+	if( ( DLL_EXT[0] && COM_CompareExtension( filename, DLL_EXT ) )
 		|| COM_CompareExtension( filename, ".qvm" )
 		|| COM_CompareExtension( filename, ".pk3" ) )
 	{
@@ -3313,9 +3314,9 @@ static void FS_Startup( const char *gameName )
 	}
 	// fs_homepath is somewhat particular to *nix systems, only add if relevant
 
-#ifdef MACOS_X
+#if defined(MACOS_X) || defined(IOS)
 	fs_apppath = Cvar_Get ("fs_apppath", Sys_DefaultAppPath(), CVAR_INIT|CVAR_PROTECTED );
-	// Make MacOSX also include the base path included with the .app bundle
+	// Make MacOSX / iOS also include the base path included with the .app bundle
 	if (fs_apppath->string[0])
 		FS_AddGameDirectory(fs_apppath->string, gameName);
 #endif

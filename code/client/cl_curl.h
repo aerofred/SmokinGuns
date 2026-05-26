@@ -27,6 +27,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../qcommon/q_shared.h"
 #include "../qcommon/qcommon.h"
 
+#ifdef USE_CURL
+
 #ifdef USE_LOCAL_HEADERS
   #include "../libcurl-7.35.0/curl/curl.h"
 #else
@@ -93,6 +95,8 @@ extern const char *(*qcurl_multi_strerror)(CURLMcode);
 #define qcurl_multi_info_read curl_multi_info_read
 #define qcurl_multi_strerror curl_multi_strerror
 #endif
+
+#endif /* USE_CURL */
 
 qboolean CL_cURL_Init( void );
 void CL_cURL_Shutdown( void );

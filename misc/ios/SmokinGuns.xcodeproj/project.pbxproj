@@ -1,0 +1,181 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXFileReference section */
+		AA0000010000000000000001 /* SmokinGuns.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmokinGuns.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		AA0000030000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				AA0000040000000000000001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AA0000040000000000000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000010000000000000001 /* SmokinGuns.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AA0000050000000000000001 /* SmokinGuns */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA00000A0000000000000001 /* Build configuration list for PBXNativeTarget "SmokinGuns" */;
+			buildPhases = (
+				AA0000060000000000000001 /* Build Engine */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SmokinGuns;
+			productName = SmokinGuns;
+			productReference = AA0000010000000000000001 /* SmokinGuns.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA0000070000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = AA0000090000000000000001 /* Build configuration list for PBXProject "SmokinGuns" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AA0000030000000000000001;
+			productRefGroup = AA0000040000000000000001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AA0000050000000000000001 /* SmokinGuns */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AA0000060000000000000001 /* Build Engine */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Build Engine";
+			outputPaths = (
+			);
+			alwaysOutOfDate = 1;
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "set -e\ncd \"${SRCROOT}/../..\"\nchmod +x misc/ios/build-ios.sh misc/ios/copy_game_data.sh\nif [ ! -f misc/ios/SDL2.framework/SDL2 ]; then\n  chmod +x misc/ios/setup_sdl2.sh\n  misc/ios/setup_sdl2.sh\nfi\nmisc/ios/build-ios.sh\nAPP_OUT=\"${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}\"\nrm -rf \"${APP_OUT}\"\ncp -a build/ios/SmokinGuns.app \"${APP_OUT}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		AA0000080000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = FP9V6HP6Q2;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "i386 x86_64";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.smokinguns.ios;
+				PRODUCT_NAME = SmokinGuns;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA0000080000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = FP9V6HP6Q2;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "i386 x86_64";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.smokinguns.ios;
+				PRODUCT_NAME = SmokinGuns;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		AA00000B0000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+		AA00000B0000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				SDKROOT = iphoneos;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA0000090000000000000001 /* Build configuration list for PBXProject "SmokinGuns" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA00000B0000000000000001 /* Debug */,
+				AA00000B0000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA00000A0000000000000001 /* Build configuration list for PBXNativeTarget "SmokinGuns" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000080000000000000001 /* Debug */,
+				AA0000080000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AA0000070000000000000001 /* Project object */;
+}

@@ -1,0 +1,113 @@
+# iOS build overrides for Smokin' Guns (include with: make -include Makefile.ios ...)
+#
+# Example:
+#   make -include Makefile.smokinguns -include Makefile.ios \
+#     PLATFORM=ios ARCH=arm64 BUILD_SERVER=0 USE_RENDERER_DLOPEN=0
+
+PLATFORM=ios
+ARCH=arm64
+
+BUILD_SERVER:=0
+USE_RENDERER_DLOPEN:=0
+BUILD_RENDERER_OPENGL2:=0
+BUILD_GAME_SO:=0
+BUILD_GAME_QVM:=1
+
+USE_OPENAL:=0
+USE_OPENAL_DLOPEN:=0
+USE_CURL:=0
+USE_CURL_DLOPEN:=0
+USE_MUMBLE:=0
+USE_VOIP:=0
+USE_FREETYPE:=0
+BUILD_SDK_DIFF:=0
+# Makefile.smokinguns may enable freetype before this file is parsed; strip the define.
+BASE_CFLAGS:= $(filter-out -DBUILD_FREETYPE -DFRAMEBUFFER_AND_GLSL_SUPPORT -DUSE_VOIP -DUSE_CURL -DUSE_CURL_DLOPEN -DUSE_OPENAL -DUSE_OPENAL_DLOPEN,$(BASE_CFLAGS))
+CLIENT_CFLAGS:= $(filter-out -DBUILD_FREETYPE -DFRAMEBUFFER_AND_GLSL_SUPPORT -DUSE_VOIP -DUSE_CURL -DUSE_CURL_DLOPEN -DUSE_OPENAL -DUSE_OPENAL_DLOPEN,$(CLIENT_CFLAGS))
+SERVER_CFLAGS:= $(filter-out -DUSE_VOIP -DSDK_DIFF=\"2\" -DSDK_DIFF=2,$(SERVER_CFLAGS))
+BASEGAME_CFLAGS:= $(filter-out -DSDK_DIFF=\"2\" -DSDK_DIFF=2,$(BASEGAME_CFLAGS))
+USE_CODEC_OPUS:=0
+USE_CODEC_VORBIS:=0
+BUILD_STANDALONE:=1
+
+USE_SDL2=1
+USE_GLES=1
+USE_LOCAL_HEADERS=0
+
+# Smokin' Guns FBO path uses desktop GL; disable on iOS GLES MVP
+FRAMEBUFFER_AND_GLSL_SUPPORT:=0
+
+IOS_SDK?= $(shell xcrun --sdk iphoneos --show-sdk-path 2>/dev/null)
+IOS_MIN_VERSION?=15.0
+
+ifneq ($(IOS_SDK),)
+  CC= $(shell xcrun --sdk iphoneos -f clang 2>/dev/null)
+  CXX= $(shell xcrun --sdk iphoneos -f clang++ 2>/dev/null)
+endif
+
+IOS_CFLAGS= \
+	-DGLES_SILENCE_DEPRECATION=1 \
+	-DIOS=1 \
+	-DTARGET_OS_IPHONE=1 \
+	-DUSE_SDL2=1 \
+	-DUSE_GLES=1 \
+	-DNO_VM_COMPILED \
+	-UUSE_VOIP \
+	-UUSE_CURL \
+	-UUSE_OPENAL \
+	-isysroot $(IOS_SDK) \
+	-miphoneos-version-min=$(IOS_MIN_VERSION) \
+	-arch arm64
+
+BASE_CFLAGS+= $(IOS_CFLAGS)
+CLIENT_CFLAGS+= $(IOS_CFLAGS)
+OPTIMIZEVM+= $(IOS_CFLAGS)
+
+CLIENT_LIBS+= \
+	-framework OpenGLES \
+	-framework UIKit \
+	-framework Foundation \
+	-framework CoreGraphics \
+	-framework QuartzCore \
+	-framework AudioToolbox \
+	-framework CoreAudio \
+	-framework AVFoundation \
+	-framework GameController \
+	-framework CoreMotion \
+	-framework CoreHaptics \
+	-framework CoreBluetooth
+
+RENDERER_LIBS+= -framework OpenGLES
+RENDERER_LIBS:= $(filter-out -lfreetype,$(RENDERER_LIBS))
+
+# SDL2: set SDL2_IOS_CFLAGS / SDL2_IOS_LIBS after running misc/ios/setup_sdl2.sh
+ifdef SDL2_IOS_FRAMEWORK
+  BASE_CFLAGS+= -I$(SDL2_IOS_FRAMEWORK)/Headers
+  CLIENT_CFLAGS+= -I$(SDL2_IOS_FRAMEWORK)/Headers
+else ifdef SDL2_CONFIG
+  CLIENT_CFLAGS+= $(shell $(SDL2_CONFIG) --cflags 2>/dev/null)
+  CLIENT_LIBS+= $(shell $(SDL2_CONFIG) --libs 2>/dev/null)
+endif
+
+CLIENT_LDFLAGS+= -ObjC
+LDFLAGS+= -ObjC
+
+HAVE_VM_COMPILED=false
+
+CLIENTBIN=SmokinGuns
+
+BR=$(BUILD_DIR)/release-$(PLATFORM)-$(ARCH)
+
+.PHONY: ios-client
+ios-client:
+	@echo "Building iOS client in $(BR)..."
+	$(MAKE) -f Makefile -f Makefile.ios makedirs $(BR)/SmokinGuns.arm64 \
+		B=$(BR) \
+		PLATFORM=ios \
+		ARCH=arm64 \
+		CFLAGS="$(CFLAGS) $(BASE_CFLAGS) $(DEPEND_CFLAGS)" \
+		OPTIMIZE="-DNDEBUG $(OPTIMIZE)" \
+		OPTIMIZEVM="-DNDEBUG $(OPTIMIZEVM)" \
+		BASE_CFLAGS="$(BASE_CFLAGS) -DNDEBUG" \
+		CLIENT_CFLAGS="$(CLIENT_CFLAGS)" \
+		SERVER_CFLAGS="$(SERVER_CFLAGS)"

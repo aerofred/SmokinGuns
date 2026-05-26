@@ -52,6 +52,7 @@ endif
 #
 #############################################################################
 -include Makefile.local
+-include Makefile.smokinguns
 
 ifndef PLATFORM
 PLATFORM=$(COMPILE_PLATFORM)
@@ -398,6 +399,78 @@ ifneq (,$(findstring "$(PLATFORM)", "linux" "gnu_kfreebsd" "kfreebsd-gnu"))
   endif
   endif
 else # ifeq Linux
+
+#############################################################################
+# SETUP AND BUILD -- iOS
+#############################################################################
+
+ifeq ($(PLATFORM),ios)
+  HAVE_VM_COMPILED=false
+  LIBS=
+  CLIENT_LIBS=
+  RENDERER_LIBS=
+  OPTIMIZEVM=-O2
+  OPTIMIZE=-O2 -ffast-math
+
+  BASE_CFLAGS = -Wall -fno-strict-aliasing -Wimplicit -Wstrict-prototypes -pipe
+  BASE_CFLAGS += -DIOS=1 -DTARGET_OS_IPHONE=1
+
+  ifndef USE_SDL2
+    USE_SDL2=1
+  endif
+  ifndef USE_GLES
+    USE_GLES=1
+  endif
+
+  BASE_CFLAGS += -DUSE_SDL2=1 -DUSE_GLES=1 -DNO_VM_COMPILED
+
+  ifndef IOS_SDK
+    IOS_SDK:= $(shell xcrun --sdk iphoneos --show-sdk-path 2>/dev/null)
+  endif
+  ifndef IOS_MIN_VERSION
+    IOS_MIN_VERSION=15.0
+  endif
+
+  ifneq ($(IOS_SDK),)
+    IOS_SYSROOT_CFLAGS=-isysroot $(IOS_SDK) -miphoneos-version-min=$(IOS_MIN_VERSION) -arch $(ARCH)
+    BASE_CFLAGS += $(IOS_SYSROOT_CFLAGS)
+    CLIENT_CFLAGS += $(IOS_SYSROOT_CFLAGS)
+    OPTIMIZEVM += $(IOS_SYSROOT_CFLAGS)
+    CC:= $(shell xcrun --sdk iphoneos -f clang 2>/dev/null)
+  endif
+
+  CLIENT_LIBS += \
+    -framework OpenGLES \
+    -framework UIKit \
+    -framework Foundation \
+    -framework CoreGraphics \
+    -framework QuartzCore \
+    -framework AudioToolbox \
+    -framework CoreAudio \
+    -framework AVFoundation \
+    -framework GameController
+
+  RENDERER_LIBS += -framework OpenGLES
+
+  ifdef SDL2_IOS_FRAMEWORK
+    SDL2_FRAMEWORK_DIR:= $(dir $(SDL2_IOS_FRAMEWORK))
+    BASE_CFLAGS += -I$(SDL2_IOS_FRAMEWORK)/Headers
+    CLIENT_CFLAGS += -I$(SDL2_IOS_FRAMEWORK)/Headers
+    CLIENT_LIBS += $(SDL2_IOS_FRAMEWORK)/SDL2
+  else ifdef SDL2_CONFIG
+    CLIENT_CFLAGS += $(shell $(SDL2_CONFIG) --cflags 2>/dev/null)
+    CLIENT_LIBS += $(shell $(SDL2_CONFIG) --libs 2>/dev/null)
+  endif
+
+  SHLIBEXT=dylib
+  SHLIBCFLAGS=-fPIC
+  SHLIBLDFLAGS=-dynamiclib $(LDFLAGS)
+  NOTSHLIBCFLAGS=
+
+  LIBSDLMAIN=
+  LIBSDLMAINSRC=
+
+else # ifeq ios
 
 #############################################################################
 # SETUP AND BUILD -- MAC OS X
@@ -899,6 +972,7 @@ else # ifeq sunos
   SHLIBCFLAGS=-fPIC
   SHLIBLDFLAGS=-shared
 
+endif # ifeq ios
 endif #Linux
 endif #darwin
 endif #mingw32
@@ -2093,6 +2167,23 @@ ifeq ($(PLATFORM),darwin)
     $(B)/client/sys_osx.o
 endif
 
+ifeq ($(PLATFORM),ios)
+  Q3OBJ := $(filter-out $(B)/client/sdl_input.o $(B)/client/sdl_snd.o $(B)/client/qal.o $(B)/client/snd_openal.o,$(Q3OBJ))
+  Q3OBJ += \
+    $(B)/client/sdl_input_ios.o \
+    $(B)/client/sdl_snd_ios.o \
+    $(B)/client/cl_touch.o \
+    $(B)/client/ios_main.o \
+    $(B)/client/sys_ios.o
+  Q3ROBJ := $(filter-out $(B)/renderergl1/sdl_glimp.o $(B)/renderergl1/sdl_gamma.o,$(Q3ROBJ))
+  Q3ROBJ += \
+    $(B)/renderergl1/sdl_glimp_ios.o \
+    $(B)/renderergl1/gles_immediate.o
+  Q3ROBJ := $(filter-out $(B)/renderergl1/tr_framebuffer.o $(B)/renderergl1/tr_glslprogs.o,$(Q3ROBJ))
+  CLIENTBIN=SmokinGuns
+  TARGETS := $(B)/SmokinGuns.arm64
+endif
+
 ifeq ($(USE_MUMBLE),1)
   Q3OBJ += \
     $(B)/client/libmumblelink.o
@@ -2577,9 +2668,13 @@ $(B)/$(MISSIONPACK)/vm/ui.qvm: $(MPUIVMOBJ) $(UIDIR)/ui_syscalls.asm $(Q3ASM)
 $(B)/client/%.o: $(ASMDIR)/%.s
 	$(DO_AS)
 
-# k8 so inline assembler knows about SSE
+# k8 so inline assembler knows about SSE (x86 only)
 $(B)/client/%.o: $(ASMDIR)/%.c
+ifeq ($(PLATFORM),ios)
+	$(DO_CC)
+else
 	$(DO_CC) -march=k8
+endif
 
 $(B)/client/%.o: $(CDIR)/%.c
 	$(DO_CC)
@@ -2627,6 +2722,9 @@ $(B)/client/%.o: $(SYSDIR)/%.c
 	$(DO_CC)
 
 $(B)/client/%.o: $(SYSDIR)/%.m
+	$(DO_CC)
+
+$(B)/client/ios_main.o: $(MOUNT_DIR)/ios/ios_main.m
 	$(DO_CC)
 
 $(B)/client/%.o: $(SYSDIR)/%.rc

@@ -137,9 +137,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #endif
 
 
-//============================================================== MAC OS X ===
+//============================================================== iOS ========
 
-#if defined(MACOS_X) || defined(__APPLE_CC__)
+#if defined(IOS) || (defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+
+#define OS_STRING "ios"
+#define ID_INLINE inline
+#define PATH_SEP '/'
+
+#undef idx64
+#define idx64 0
+#define ARCH_STRING "arm64"
+#define Q3_LITTLE_ENDIAN
+
+#define DLL_EXT ".dylib"
+
+#elif defined(MACOS_X) || (defined(__APPLE__) && !defined(TARGET_OS_IPHONE))
+
+//============================================================== MAC OS X ===
 
 // make sure this is defined, just for sanity's sake...
 #ifndef MACOS_X

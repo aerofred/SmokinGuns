@@ -35,7 +35,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #		define Sys_LibraryError() dlerror()
 #	endif
 #else
-#	ifdef USE_LOCAL_HEADERS
+#	ifdef USE_SDL2
+#		include <SDL.h>
+#		include <SDL_loadso.h>
+#	elif defined(USE_LOCAL_HEADERS)
 #		include "SDL.h"
 #		include "SDL_loadso.h"
 #	else
