@@ -42,4 +42,14 @@ if [ -n "${VM_SRC}" ]; then
 	cp -f "${VM_SRC}"/*.qvm "${VM_SRC}"/*.jts "${RESOURCES}/smokinguns/vm/" 2>/dev/null || true
 fi
 
+# Menus UI du dépôt (écrase les .menu du pk3 si présents en loose files)
+UI_SRC="${ROOT_DIR}/ui"
+if [ -d "${UI_SRC}" ]; then
+	for dest in "${RESOURCES}/ui" "${RESOURCES}/smokinguns/ui"; do
+		mkdir -p "${dest}"
+		cp -f "${UI_SRC}"/*.menu "${UI_SRC}"/*.txt "${dest}/" 2>/dev/null || true
+		echo "Copied ui/*.{menu,txt} -> ${dest}/"
+	done
+fi
+
 echo "Game data installed in ${RESOURCES}"

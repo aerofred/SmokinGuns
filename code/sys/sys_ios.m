@@ -78,3 +78,77 @@ void Sys_ShowLANAddresses( void )
 	}
 	freeifaddrs( ifap );
 }
+
+static int iosViewportX = 0;
+static int iosViewportY = 0;
+static int iosViewportWidth = 0;
+static int iosViewportHeight = 0;
+static float iosViewportXScale = 1.0f;
+static float iosViewportYScale = 1.0f;
+static float iosViewportXBias = 0.0f;
+static float iosViewportYBias = 0.0f;
+
+void Sys_UpdateViewport4x3( int vidWidth, int vidHeight ) {
+	int availWidth;
+	int availHeight;
+	int viewWidth;
+	int viewHeight;
+
+	if ( vidWidth <= 0 || vidHeight <= 0 ) {
+		return;
+	}
+
+	availWidth = vidWidth;
+	availHeight = vidHeight;
+
+	if ( availWidth * 3 > availHeight * 4 ) {
+		viewHeight = availHeight;
+		viewWidth = ( availHeight * 4 ) / 3;
+	} else {
+		viewWidth = availWidth;
+		viewHeight = ( availWidth * 3 ) / 4;
+	}
+
+	viewWidth &= ~1;
+	viewHeight &= ~1;
+
+	iosViewportWidth = viewWidth;
+	iosViewportHeight = viewHeight;
+	iosViewportX = ( vidWidth - viewWidth ) / 2;
+	iosViewportY = ( vidHeight - viewHeight ) / 2;
+
+	iosViewportXScale = (float)viewWidth / 640.0f;
+	iosViewportYScale = (float)viewHeight / 480.0f;
+	iosViewportXBias = (float)iosViewportX;
+	iosViewportYBias = (float)iosViewportY;
+}
+
+void Sys_GetViewport4x3( int *x, int *y, int *width, int *height ) {
+	if ( x ) {
+		*x = iosViewportX;
+	}
+	if ( y ) {
+		*y = iosViewportY;
+	}
+	if ( width ) {
+		*width = iosViewportWidth;
+	}
+	if ( height ) {
+		*height = iosViewportHeight;
+	}
+}
+
+void Sys_GetViewport640Mapping( float *xscale, float *yscale, float *xbias, float *ybias ) {
+	if ( xscale ) {
+		*xscale = iosViewportXScale;
+	}
+	if ( yscale ) {
+		*yscale = iosViewportYScale;
+	}
+	if ( xbias ) {
+		*xbias = iosViewportXBias;
+	}
+	if ( ybias ) {
+		*ybias = iosViewportYBias;
+	}
+}

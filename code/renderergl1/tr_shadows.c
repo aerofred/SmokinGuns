@@ -44,6 +44,8 @@ typedef struct {
 static	edgeDef_t	edgeDefs[SHADER_MAX_VERTEXES][MAX_EDGE_DEFS];
 static	int			numEdgeDefs[SHADER_MAX_VERTEXES];
 static	int			facing[SHADER_MAX_INDEXES/3];
+static	glIndex_t	shadowIndexes[SHADER_MAX_VERTEXES*MAX_EDGE_DEFS*6];
+static	int			numShadowIndexes;
 
 void R_AddEdgeDef( int i1, int i2, int facing ) {
 	int		c;
@@ -58,7 +60,7 @@ void R_AddEdgeDef( int i1, int i2, int facing ) {
 	numEdgeDefs[ i1 ]++;
 }
 
-void R_RenderShadowEdges( void ) {
+void R_CalculateShadowEdges( void ) {
 	int		i;
 
 #if 0
@@ -93,16 +95,14 @@ void R_RenderShadowEdges( void ) {
 	int		c, c2;
 	int		j, k;
 	int		i2;
-	int		c_edges, c_rejected;
 	int		hit[2];
+
+	numShadowIndexes = 0;
 
 	// an edge is NOT a silhouette edge if its face doesn't face the light,
 	// or if it has a reverse paired edge that also faces the light.
 	// A well behaved polyhedron would have exactly two faces for each edge,
 	// but lots of models have dangling edges or overfanned edges
-	c_edges = 0;
-	c_rejected = 0;
-
 	for ( i = 0 ; i < tess.numVertexes ; i++ ) {
 		c = numEdgeDefs[ i ];
 		for ( j = 0 ; j < c ; j++ ) {
@@ -124,15 +124,13 @@ void R_RenderShadowEdges( void ) {
 			// if it doesn't share the edge with another front facing
 			// triangle, it is a sil edge
 			if ( hit[ 1 ] == 0 ) {
-				qglBegin( GL_TRIANGLE_STRIP );
-				qglVertex3fv( tess.xyz[ i ] );
-				qglVertex3fv( tess.xyz[ i + tess.numVertexes ] );
-				qglVertex3fv( tess.xyz[ i2 ] );
-				qglVertex3fv( tess.xyz[ i2 + tess.numVertexes ] );
-				qglEnd();
-				c_edges++;
-			} else {
-				c_rejected++;
+				shadowIndexes[numShadowIndexes++] = i;
+				shadowIndexes[numShadowIndexes++] = i + tess.numVertexes;
+				shadowIndexes[numShadowIndexes++] = i2;
+
+				shadowIndexes[numShadowIndexes++] = i2;
+				shadowIndexes[numShadowIndexes++] = i + tess.numVertexes;
+				shadowIndexes[numShadowIndexes++] = i2 + tess.numVertexes;
 			}
 		}
 	}
@@ -208,46 +206,48 @@ void RB_ShadowTessEnd( void ) {
 		R_AddEdgeDef( i3, i1, facing[ i ] );
 	}
 
+	R_CalculateShadowEdges();
+
 	// draw the silhouette edges
 
 	GL_Bind( tr.whiteImage );
-	qglEnable( GL_CULL_FACE );
 	GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ZERO );
 	qglColor3f( 0.2f, 0.2f, 0.2f );
 
+	qglDisableClientState( GL_TEXTURE_COORD_ARRAY );
+	qglDisableClientState( GL_COLOR_ARRAY );
+
+	qglVertexPointer( 3, GL_FLOAT, 16, tess.xyz );
+
+	if ( qglLockArraysEXT ) {
+		qglLockArraysEXT( 0, tess.numVertexes * 2 );
+		GLimp_LogComment( "glLockArraysEXT\n" );
+	}
+
 	// don't write to the color buffer
-	qglGetBooleanv(GL_COLOR_WRITEMASK, rgba);
+	qglGetBooleanv( GL_COLOR_WRITEMASK, rgba );
 	qglColorMask( GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE );
 
 	qglEnable( GL_STENCIL_TEST );
 	qglStencilFunc( GL_ALWAYS, 1, 255 );
 
-	// mirrors have the culling order reversed
-	if ( backEnd.viewParms.isMirror ) {
-		qglCullFace( GL_FRONT );
-		qglStencilOp( GL_KEEP, GL_KEEP, GL_INCR );
+	GL_Cull( CT_BACK_SIDED );
+	qglStencilOp( GL_KEEP, GL_KEEP, GL_INCR );
 
-		R_RenderShadowEdges();
+	R_DrawElements( numShadowIndexes, shadowIndexes );
 
-		qglCullFace( GL_BACK );
-		qglStencilOp( GL_KEEP, GL_KEEP, GL_DECR );
+	GL_Cull( CT_FRONT_SIDED );
+	qglStencilOp( GL_KEEP, GL_KEEP, GL_DECR );
 
-		R_RenderShadowEdges();
-	} else {
-		qglCullFace( GL_BACK );
-		qglStencilOp( GL_KEEP, GL_KEEP, GL_INCR );
+	R_DrawElements( numShadowIndexes, shadowIndexes );
 
-		R_RenderShadowEdges();
-
-		qglCullFace( GL_FRONT );
-		qglStencilOp( GL_KEEP, GL_KEEP, GL_DECR );
-
-		R_RenderShadowEdges();
+	if ( qglUnlockArraysEXT ) {
+		qglUnlockArraysEXT();
+		GLimp_LogComment( "glUnlockArraysEXT\n" );
 	}
 
-
 	// reenable writing to the color buffer
-	qglColorMask(rgba[0], rgba[1], rgba[2], rgba[3]);
+	qglColorMask( rgba[0], rgba[1], rgba[2], rgba[3] );
 }
 
 
@@ -262,6 +262,8 @@ overlap and double darken.
 =================
 */
 void RB_ShadowFinish( void ) {
+	vec4_t quadVerts[4];
+
 	if ( r_shadows->integer != 2 ) {
 		return;
 	}
@@ -272,7 +274,7 @@ void RB_ShadowFinish( void ) {
 	qglStencilFunc( GL_NOTEQUAL, 0, 255 );
 
 	qglDisable (GL_CLIP_PLANE0);
-	qglDisable (GL_CULL_FACE);
+	GL_Cull( CT_TWO_SIDED );
 
 	GL_Bind( tr.whiteImage );
 
@@ -281,15 +283,12 @@ void RB_ShadowFinish( void ) {
 	qglColor3f( 0.6f, 0.6f, 0.6f );
 	GL_State( GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO );
 
-//	qglColor3f( 1, 0, 0 );
-//	GL_State( GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ZERO );
+	quadVerts[0][0] = -100; quadVerts[0][1] =  100; quadVerts[0][2] = -10; quadVerts[0][3] = 0;
+	quadVerts[1][0] =  100; quadVerts[1][1] =  100; quadVerts[1][2] = -10; quadVerts[1][3] = 0;
+	quadVerts[2][0] =  100; quadVerts[2][1] = -100; quadVerts[2][2] = -10; quadVerts[2][3] = 0;
+	quadVerts[3][0] = -100; quadVerts[3][1] = -100; quadVerts[3][2] = -10; quadVerts[3][3] = 0;
 
-	qglBegin( GL_QUADS );
-	qglVertex3f( -100, 100, -10 );
-	qglVertex3f( 100, 100, -10 );
-	qglVertex3f( 100, -100, -10 );
-	qglVertex3f( -100, -100, -10 );
-	qglEnd ();
+	RB_InstantQuad( quadVerts );
 
 	qglColor4f(1,1,1,1);
 	qglDisable( GL_STENCIL_TEST );

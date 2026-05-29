@@ -24,6 +24,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "client.h"
 
+#ifdef IOS
+#include "../renderercommon/tr_common.h"
+
+static void CL_SyncGlconfigFromRenderer( void ) {
+	if ( cls.glconfig.vidWidth == glConfig.vidWidth &&
+		cls.glconfig.vidHeight == glConfig.vidHeight ) {
+		return;
+	}
+
+	cls.glconfig.vidWidth = glConfig.vidWidth;
+	cls.glconfig.vidHeight = glConfig.vidHeight;
+	cls.glconfig.windowAspect = glConfig.windowAspect;
+}
+#endif
+
 qboolean	scr_initialized;		// ready to draw
 
 cvar_t		*cl_timegraph;
@@ -645,6 +660,10 @@ void SCR_UpdateScreen( void ) {
 	if ( !scr_initialized ) {
 		return;				// not initialized yet
 	}
+
+#ifdef IOS
+	CL_SyncGlconfigFromRenderer();
+#endif
 
 	if ( ++recursive > 2 ) {
 		Com_Error( ERR_FATAL, "SCR_UpdateScreen: recursively called" );

@@ -70,6 +70,8 @@ void GLES_Ortho( GLfloat left, GLfloat right, GLfloat bottom, GLfloat top,
 	GLfloat zNear, GLfloat zFar );
 void GLES_Enable( GLenum cap );
 void GLES_Disable( GLenum cap );
+void GLES_ClientActiveTexture( GLenum texture );
+void GLES_TexEnvf( GLenum target, GLenum pname, GLfloat param );
 void GLES_PushMatrix( void );
 void GLES_PopMatrix( void );
 void GLES_LoadMatrixf( const GLfloat *m );
@@ -104,7 +106,7 @@ void GLES_ArrayElement( GLint i );
 
 /* ARB multitexture → GLES2 */
 #define qglActiveTextureARB glActiveTexture
-#define qglClientActiveTextureARB( x ) ((void)(x))
+#define qglClientActiveTextureARB GLES_ClientActiveTexture
 #define qglMultiTexCoord2fARB GLES_MultiTexCoord2f
 
 /* Checked as function pointers in tr_init / tr_shade (NULL = unavailable on ES2). */
@@ -259,8 +261,8 @@ extern void ( *qglUnlockArraysEXT )( void );
 #define qglTexCoord4f( a, b, c, d ) ((void)(a),(void)(b),(void)(c),(void)(d))
 #define qglTexCoord4fv( a ) ((void)(a))
 #define qglTexCoordPointer GLES_TexCoordPointer
-#define qglTexEnvf( a, b, c ) ((void)(a),(void)(b),(void)(c))
-#define qglTexEnvfv( a, b, c ) ((void)(a),(void)(b),(void)(c))
+#define qglTexEnvf GLES_TexEnvf
+#define qglTexEnvfv( a, b, c ) GLES_TexEnvf( a, b, (c) ? (c)[0] : 0.0f )
 #define qglTexEnvi( a, b, c ) ((void)(a),(void)(b),(void)(c))
 #define qglTexEnviv( a, b, c ) ((void)(a),(void)(b),(void)(c))
 #define qglTexGend( a, b, c ) ((void)(a),(void)(b),(void)(c))

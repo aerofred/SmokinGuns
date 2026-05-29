@@ -26,15 +26,18 @@ static struct {
 	const void *vertex;
 	const void *color;
 	const void *texcoord;
+	const void *texcoord2;
 	GLint vertexSize;
 	GLint colorSize;
 	GLint texSize;
 	GLsizei vertexStride;
 	GLsizei colorStride;
 	GLsizei texStride;
+	GLsizei texStride2;
 	qboolean vertexEnabled;
 	qboolean colorEnabled;
 	qboolean texEnabled;
+	qboolean tex2Enabled;
 } glesClient;
 
 #define GLES_MAX_VERTS 4096
@@ -66,11 +69,14 @@ static GLint glesLocTex0;
 static GLint glesLocTex1;
 static GLint glesLocColor;
 
-static int glesActiveTex;
+static int glesClientActiveTex;
 static GLfloat glesCurST[2];
 static GLfloat glesCurST2[2];
 static GLubyte glesCurColor[4];
-static qboolean glesTex2DEnabled;
+static qboolean glesTexUnitEnabled[2];
+static GLint glesTexEnvMode;
+static GLint glesLocTexEnv;
+static GLint glesLocBright;
 
 static const char *glesVertSrc =
 	"attribute vec3 aPos;\n"
@@ -96,11 +102,25 @@ static const char *glesFragSrc =
 	"uniform sampler2D uTex0;\n"
 	"uniform sampler2D uTex1;\n"
 	"uniform int uUseTex1;\n"
+	"uniform int uTexEnvMode;\n"
+	"uniform float uBright;\n"
 	"void main() {\n"
+	"  vec4 t0 = texture2D(uTex0, vTex0);\n"
 	"  vec4 c = vColor;\n"
-	"  c *= texture2D(uTex0, vTex0);\n"
-	"  if (uUseTex1 != 0) c *= texture2D(uTex1, vTex1);\n"
-	"  gl_FragColor = c;\n"
+	"  if (uUseTex1 != 0) {\n"
+	"    vec4 t1 = texture2D(uTex1, vTex1);\n"
+	"    if (uTexEnvMode == 0x2101) {\n"
+	"      c *= t1;\n"
+	"    } else if (uTexEnvMode == 0x0104) {\n"
+	"      c *= min(t0 + t1, vec4(1.0));\n"
+	"    } else {\n"
+	"      vec4 lm = max(t1 * 2.4 + 0.18, vec4(0.22));\n"
+	"      c *= t0 * lm;\n"
+	"    }\n"
+	"  } else {\n"
+	"    c *= t0;\n"
+	"  }\n"
+	"  gl_FragColor = c * uBright;\n"
 	"}\n";
 
 static GLuint Gles_CompileShader( GLenum type, const char *src )
@@ -268,11 +288,26 @@ void GLES_Vertex2fv( const GLfloat *v )
 	GLES_Vertex3f( v[0], v[1], 0.0f );
 }
 
+void GLES_ClientActiveTexture( GLenum texture )
+{
+	if ( texture == GL_TEXTURE1 || texture == GL_TEXTURE1_ARB || texture == GL_TEXTURE0 + 1 )
+		glesClientActiveTex = 1;
+	else
+		glesClientActiveTex = 0;
+}
+
+void GLES_TexEnvf( GLenum target, GLenum pname, GLfloat param )
+{
+	(void)target;
+	if ( pname == GL_TEXTURE_ENV_MODE )
+		glesTexEnvMode = (GLint)param;
+}
+
 void GLES_Enable( GLenum cap )
 {
 	if ( cap == GL_TEXTURE_2D )
 	{
-		glesTex2DEnabled = qtrue;
+		glesTexUnitEnabled[glesClientActiveTex] = qtrue;
 		return;
 	}
 	glEnable( cap );
@@ -282,10 +317,48 @@ void GLES_Disable( GLenum cap )
 {
 	if ( cap == GL_TEXTURE_2D )
 	{
-		glesTex2DEnabled = qfalse;
+		glesTexUnitEnabled[glesClientActiveTex] = qfalse;
 		return;
 	}
 	glDisable( cap );
+}
+
+static void Gles_BindDrawTextures( qboolean useTex1 )
+{
+	qglActiveTextureARB( GL_TEXTURE0_ARB );
+	qglBindTexture( GL_TEXTURE_2D, glState.currenttextures[0] );
+	if ( useTex1 )
+	{
+		qglActiveTextureARB( GL_TEXTURE1_ARB );
+		qglBindTexture( GL_TEXTURE_2D, glState.currenttextures[1] );
+		qglActiveTextureARB( GL_TEXTURE0_ARB );
+	}
+}
+
+static void Gles_SetTextureUniforms( GLint useTex1Loc )
+{
+	qboolean useTex1;
+	float gamma, intensity, bright;
+
+	useTex1 = ( glesClient.texcoord2 != NULL && glesClient.tex2Enabled ) ? qtrue : qfalse;
+	if ( !useTex1 && glesClient.texcoord2 != NULL && glesTexUnitEnabled[1] )
+		useTex1 = qtrue;
+
+	glUniform1i( glesLocTex0, 0 );
+	glUniform1i( glesLocTex1, 1 );
+	glUniform1i( useTex1Loc, useTex1 ? 1 : 0 );
+	glUniform1i( glesLocTexEnv, glesTexEnvMode );
+
+	gamma = Cvar_VariableValue( "r_gamma" );
+	intensity = Cvar_VariableValue( "r_intensity" );
+	bright = gamma * intensity;
+	if ( bright < 0.35f )
+		bright = 0.35f;
+	if ( bright > 6.0f )
+		bright = 6.0f;
+	glUniform1f( glesLocBright, bright );
+
+	Gles_BindDrawTextures( useTex1 );
 }
 
 void GLES_Scalef( GLfloat x, GLfloat y, GLfloat z )
@@ -314,7 +387,10 @@ void GLES_InitImmediate( void )
 	Gles_MatIdentity( glesModelView );
 	glesStackDepth = 0;
 	glesCurColor[0] = glesCurColor[1] = glesCurColor[2] = glesCurColor[3] = 255;
-	glesTex2DEnabled = qtrue;
+	glesTexUnitEnabled[0] = qtrue;
+	glesTexUnitEnabled[1] = qfalse;
+	glesClientActiveTex = 0;
+	glesTexEnvMode = GL_MODULATE;
 
 	vs = Gles_CompileShader( GL_VERTEX_SHADER, glesVertSrc );
 	fs = Gles_CompileShader( GL_FRAGMENT_SHADER, glesFragSrc );
@@ -329,6 +405,8 @@ void GLES_InitImmediate( void )
 	glesLocTex0 = glGetUniformLocation( glesProgram, "uTex0" );
 	glesLocTex1 = glGetUniformLocation( glesProgram, "uTex1" );
 	glesLocColor = glGetUniformLocation( glesProgram, "uColor" );
+	glesLocTexEnv = glGetUniformLocation( glesProgram, "uTexEnvMode" );
+	glesLocBright = glGetUniformLocation( glesProgram, "uBright" );
 	glUseProgram( glesProgram );
 
 	qglLockArraysEXT = Gles_LockArraysStub;
@@ -523,9 +601,7 @@ void GLES_End( void )
 	locCol = glGetAttribLocation( glesProgram, "aColor" );
 	useTex1 = glGetUniformLocation( glesProgram, "uUseTex1" );
 
-	glUniform1i( glGetUniformLocation( glesProgram, "uTex0" ), 0 );
-	glUniform1i( glGetUniformLocation( glesProgram, "uTex1" ), 1 );
-	glUniform1i( useTex1, ( glesTex2DEnabled ? 1 : 0 ) );
+	Gles_SetTextureUniforms( useTex1 );
 
 	glEnableVertexAttribArray( locPos );
 	glEnableVertexAttribArray( locT0 );
@@ -602,11 +678,22 @@ static void Gles_FetchVertex( int idx, glesVertex_t *v )
 	}
 	else
 	{
-		v->st[0] = v->st[1] = 0.0f;
+		v->st[0] = glesCurST[0];
+		v->st[1] = glesCurST[1];
 	}
 
-	v->st2[0] = glesCurST2[0];
-	v->st2[1] = glesCurST2[1];
+	if ( glesClient.tex2Enabled && glesClient.texcoord2 )
+	{
+		base = (const char *)glesClient.texcoord2 + idx * glesClient.texStride2;
+		f = (const float *)base;
+		v->st2[0] = f[0];
+		v->st2[1] = f[1];
+	}
+	else
+	{
+		v->st2[0] = glesCurST2[0];
+		v->st2[1] = glesCurST2[1];
+	}
 }
 
 static void Gles_DrawBatchIndexed( GLsizei count, GLenum indexType, const void *indices, GLenum mode )
@@ -647,9 +734,7 @@ static void Gles_DrawBatchIndexed( GLsizei count, GLenum indexType, const void *
 	locCol = glGetAttribLocation( glesProgram, "aColor" );
 	useTex1 = glGetUniformLocation( glesProgram, "uUseTex1" );
 
-	glUniform1i( glGetUniformLocation( glesProgram, "uTex0" ), 0 );
-	glUniform1i( glGetUniformLocation( glesProgram, "uTex1" ), 1 );
-	glUniform1i( useTex1, 0 );
+	Gles_SetTextureUniforms( useTex1 );
 
 	glEnableVertexAttribArray( locPos );
 	glEnableVertexAttribArray( locT0 );
@@ -673,10 +758,20 @@ void GLES_EnableClientState( GLenum array )
 {
 	switch ( array )
 	{
-	case GL_VERTEX_ARRAY: glesClient.vertexEnabled = qtrue; break;
-	case GL_COLOR_ARRAY: glesClient.colorEnabled = qtrue; break;
-	case GL_TEXTURE_COORD_ARRAY: glesClient.texEnabled = qtrue; break;
-	default: break;
+	case GL_VERTEX_ARRAY:
+		glesClient.vertexEnabled = qtrue;
+		break;
+	case GL_COLOR_ARRAY:
+		glesClient.colorEnabled = qtrue;
+		break;
+	case GL_TEXTURE_COORD_ARRAY:
+		if ( glesClientActiveTex )
+			glesClient.tex2Enabled = qtrue;
+		else
+			glesClient.texEnabled = qtrue;
+		break;
+	default:
+		break;
 	}
 }
 
@@ -684,10 +779,25 @@ void GLES_DisableClientState( GLenum array )
 {
 	switch ( array )
 	{
-	case GL_VERTEX_ARRAY: glesClient.vertexEnabled = qfalse; break;
-	case GL_COLOR_ARRAY: glesClient.colorEnabled = qfalse; break;
-	case GL_TEXTURE_COORD_ARRAY: glesClient.texEnabled = qfalse; break;
-	default: break;
+	case GL_VERTEX_ARRAY:
+		glesClient.vertexEnabled = qfalse;
+		break;
+	case GL_COLOR_ARRAY:
+		glesClient.colorEnabled = qfalse;
+		break;
+	case GL_TEXTURE_COORD_ARRAY:
+		if ( glesClientActiveTex )
+		{
+			glesClient.tex2Enabled = qfalse;
+			glesClient.texcoord2 = NULL;
+		}
+		else
+		{
+			glesClient.texEnabled = qfalse;
+		}
+		break;
+	default:
+		break;
 	}
 }
 
@@ -710,9 +820,17 @@ void GLES_ColorPointer( GLint size, GLenum type, GLsizei stride, const void *poi
 void GLES_TexCoordPointer( GLint size, GLenum type, GLsizei stride, const void *pointer )
 {
 	(void)type;
-	glesClient.texcoord = pointer;
-	glesClient.texSize = size;
-	glesClient.texStride = stride ? stride : (GLsizei)( size * (GLint)sizeof( float ) );
+	if ( glesClientActiveTex )
+	{
+		glesClient.texcoord2 = pointer;
+		glesClient.texStride2 = stride ? stride : (GLsizei)( size * (GLint)sizeof( float ) );
+	}
+	else
+	{
+		glesClient.texcoord = pointer;
+		glesClient.texSize = size;
+		glesClient.texStride = stride ? stride : (GLsizei)( size * (GLint)sizeof( float ) );
+	}
 }
 
 void GLES_NormalPointer( GLenum type, GLsizei stride, const void *pointer )
@@ -753,9 +871,7 @@ void GLES_DrawArrays( GLenum mode, GLint first, GLsizei count )
 	locCol = glGetAttribLocation( glesProgram, "aColor" );
 	useTex1 = glGetUniformLocation( glesProgram, "uUseTex1" );
 
-	glUniform1i( glGetUniformLocation( glesProgram, "uTex0" ), 0 );
-	glUniform1i( glGetUniformLocation( glesProgram, "uTex1" ), 1 );
-	glUniform1i( useTex1, 0 );
+	Gles_SetTextureUniforms( useTex1 );
 
 	glEnableVertexAttribArray( locPos );
 	glEnableVertexAttribArray( locT0 );

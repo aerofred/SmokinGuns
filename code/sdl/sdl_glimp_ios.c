@@ -1,6 +1,7 @@
 /*
 ===========================================================================
-SDL2 + OpenGL ES 2 video driver for iOS
+SDL2 + OpenGL ES 1.1 (fixed-function) video driver for iOS
+Based on Quake3-iOS / ioquake3 GLES path
 ===========================================================================
 */
 #include <SDL.h>
@@ -11,9 +12,11 @@ SDL2 + OpenGL ES 2 video driver for iOS
 
 #include "../renderercommon/tr_common.h"
 #include "../sys/sys_local.h"
+#include "../ios/ios_layer.h"
 
-#ifdef USE_GLES
-#include "../renderercommon/qgl_gles.h"
+#ifdef USE_GLES_FIXED
+#include "../renderercommon/qgl_es1.h"
+void GLimp_AssignES1DesktopStubs( void );
 #endif
 
 static SDL_Window *sdlWindow = NULL;
@@ -24,12 +27,181 @@ cvar_t *r_allowResize;
 cvar_t *r_centerWindow;
 cvar_t *r_sdlDriver;
 
+int qglMajorVersion, qglMinorVersion;
+int qglesMajorVersion, qglesMinorVersion;
+
+void (APIENTRYP qglActiveTextureARB) (GLenum texture);
+void (APIENTRYP qglClientActiveTextureARB) (GLenum texture);
+void (APIENTRYP qglMultiTexCoord2fARB) (GLenum target, GLfloat s, GLfloat t);
+void (APIENTRYP qglLockArraysEXT) (GLint first, GLsizei count);
+void (APIENTRYP qglUnlockArraysEXT) (void);
+
+#define GLE(ret, name, ...) name##proc * qgl##name;
+QGL_1_1_PROCS;
+QGL_1_1_FIXED_FUNCTION_PROCS;
+QGL_DESKTOP_1_1_PROCS;
+QGL_DESKTOP_1_1_FIXED_FUNCTION_PROCS;
+QGL_ES_1_1_PROCS;
+QGL_ES_1_1_FIXED_FUNCTION_PROCS;
+QGL_1_3_PROCS;
+QGL_1_5_PROCS;
+QGL_2_0_PROCS;
+QGL_3_0_PROCS;
+QGL_ARB_occlusion_query_PROCS;
+QGL_ARB_framebuffer_object_PROCS;
+QGL_ARB_vertex_array_object_PROCS;
+QGL_EXT_direct_state_access_PROCS;
+#undef GLE
+
 typedef enum {
 	RSERR_OK,
 	RSERR_INVALID_FULLSCREEN,
 	RSERR_INVALID_MODE,
 	RSERR_UNKNOWN
 } rserr_t;
+
+static void APIENTRY GLimp_GLES_ClearDepth( GLclampd depth ) {
+	qglClearDepthf( depth );
+}
+
+static void APIENTRY GLimp_GLES_ClipPlane( GLenum plane, const GLdouble *equation ) {
+	GLfloat values[4];
+	values[0] = equation[0];
+	values[1] = equation[1];
+	values[2] = equation[2];
+	values[3] = equation[3];
+	qglClipPlanef( plane, values );
+}
+
+static void APIENTRY GLimp_GLES_Color3f( GLfloat red, GLfloat green, GLfloat blue ) {
+	qglColor4f( red, green, blue, 1.0f );
+}
+
+static void APIENTRY GLimp_GLES_Color4ubv( const GLubyte *v ) {
+	qglColor4ub( v[0], v[1], v[2], v[3] );
+}
+
+static void APIENTRY GLimp_GLES_DepthRange( GLclampd near_val, GLclampd far_val ) {
+	qglDepthRangef( near_val, far_val );
+}
+
+static void APIENTRY GLimp_GLES_DrawBuffer( GLenum mode ) {
+	(void)mode;
+}
+
+static void APIENTRY GLimp_GLES_Frustum( GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val ) {
+	qglFrustumf( left, right, bottom, top, near_val, far_val );
+}
+
+static void APIENTRY GLimp_GLES_Ortho( GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val ) {
+	qglOrthof( left, right, bottom, top, near_val, far_val );
+}
+
+static void APIENTRY GLimp_GLES_PolygonMode( GLenum face, GLenum mode ) {
+	(void)face;
+	(void)mode;
+}
+
+static void GLimp_ClearProcAddresses( void ) {
+#define GLE( ret, name, ... ) qgl##name = NULL;
+
+	qglMajorVersion = 0;
+	qglMinorVersion = 0;
+	qglesMajorVersion = 0;
+	qglesMinorVersion = 0;
+
+	QGL_1_1_PROCS;
+	QGL_1_1_FIXED_FUNCTION_PROCS;
+	QGL_DESKTOP_1_1_PROCS;
+	QGL_DESKTOP_1_1_FIXED_FUNCTION_PROCS;
+	QGL_ES_1_1_PROCS;
+	QGL_ES_1_1_FIXED_FUNCTION_PROCS;
+	QGL_1_3_PROCS;
+	QGL_1_5_PROCS;
+	QGL_2_0_PROCS;
+	QGL_3_0_PROCS;
+	QGL_ARB_occlusion_query_PROCS;
+	QGL_ARB_framebuffer_object_PROCS;
+	QGL_ARB_vertex_array_object_PROCS;
+	QGL_EXT_direct_state_access_PROCS;
+
+	qglActiveTextureARB = NULL;
+	qglClientActiveTextureARB = NULL;
+	qglMultiTexCoord2fARB = NULL;
+	qglLockArraysEXT = NULL;
+	qglUnlockArraysEXT = NULL;
+
+#undef GLE
+}
+
+static qboolean GLimp_GetProcAddresses( void ) {
+	qboolean success = qtrue;
+	const char *version;
+
+#ifdef __SDL_NOGETPROCADDR__
+#define GLE( ret, name, ... ) qgl##name = gl##name;
+#else
+#define GLE( ret, name, ... ) qgl##name = (name##proc *) SDL_GL_GetProcAddress("gl" #name); \
+	if ( qgl##name == NULL ) { \
+		ri.Printf( PRINT_ALL, "ERROR: Missing OpenGL function %s\n", "gl" #name ); \
+		success = qfalse; \
+	}
+#endif
+
+	GLE(const GLubyte *, GetString, GLenum name)
+
+	if ( !qglGetString ) {
+		ri.Error( ERR_FATAL, "glGetString is NULL" );
+	}
+
+	version = (const char *)qglGetString( GL_VERSION );
+	if ( !version ) {
+		ri.Error( ERR_FATAL, "GL_VERSION is NULL" );
+	}
+
+	if ( Q_stricmpn( "OpenGL ES", version, 9 ) == 0 ) {
+		char profile[6];
+		sscanf( version, "OpenGL %5s %d.%d", profile, &qglesMajorVersion, &qglesMinorVersion );
+		if ( Q_stricmp( profile, "ES-CL" ) == 0 ) {
+			qglesMajorVersion = 0;
+			qglesMinorVersion = 0;
+		}
+	} else {
+		sscanf( version, "%d.%d", &qglMajorVersion, &qglMinorVersion );
+	}
+
+	if ( qglesMajorVersion == 1 && qglesMinorVersion >= 1 ) {
+		QGL_1_1_PROCS;
+		QGL_1_1_FIXED_FUNCTION_PROCS;
+		QGL_ES_1_1_PROCS;
+		QGL_ES_1_1_FIXED_FUNCTION_PROCS;
+
+		qglActiveTextureARB = (void (APIENTRY *)(GLenum)) SDL_GL_GetProcAddress( "glActiveTexture" );
+		qglClientActiveTextureARB = (void (APIENTRY *)(GLenum)) SDL_GL_GetProcAddress( "glClientActiveTexture" );
+		if ( !qglActiveTextureARB ) {
+			qglActiveTextureARB = (void (APIENTRY *)(GLenum)) glActiveTexture;
+		}
+		if ( !qglClientActiveTextureARB ) {
+			qglClientActiveTextureARB = (void (APIENTRY *)(GLenum)) glClientActiveTexture;
+		}
+		glConfig.numTextureUnits = 2;
+
+		qglClearDepth = GLimp_GLES_ClearDepth;
+		qglClipPlane = GLimp_GLES_ClipPlane;
+		qglColor3f = GLimp_GLES_Color3f;
+		qglColor4ubv = GLimp_GLES_Color4ubv;
+		qglDepthRange = GLimp_GLES_DepthRange;
+		qglDrawBuffer = GLimp_GLES_DrawBuffer;
+		qglFrustum = GLimp_GLES_Frustum;
+		qglOrtho = GLimp_GLES_Ortho;
+		qglPolygonMode = GLimp_GLES_PolygonMode;
+	} else {
+		ri.Error( ERR_FATAL, "Unsupported OpenGL Version (%s), OpenGL ES 1.1 is required", version );
+	}
+
+#undef GLE
+	return success;
+}
 
 static rserr_t GLimp_SetMode( int mode, qboolean fullscreen, qboolean noborder )
 {
@@ -38,11 +210,31 @@ static rserr_t GLimp_SetMode( int mode, qboolean fullscreen, qboolean noborder )
 	const char *glstring;
 
 	(void)noborder;
-	ri.Printf( PRINT_ALL, "Initializing OpenGL ES display (SDL2)\n" );
+	ri.Printf( PRINT_ALL, "Initializing OpenGL ES 1.1 display (SDL2)\n" );
 
-	if ( mode == -2 && sdlWindow )
+	if ( mode == -2 )
 	{
-		SDL_GL_GetDrawableSize( sdlWindow, &width, &height );
+		if ( sdlWindow )
+		{
+			SDL_GL_GetDrawableSize( sdlWindow, &width, &height );
+		}
+		else
+		{
+			SDL_DisplayMode desktopMode;
+
+			if ( SDL_GetDesktopDisplayMode( 0, &desktopMode ) == 0 )
+			{
+				width = desktopMode.w;
+				height = desktopMode.h;
+				displayAspect = (float)width / (float)height;
+			}
+			else
+			{
+				width = 1024;
+				height = 768;
+				displayAspect = 4.0f / 3.0f;
+			}
+		}
 	}
 	else if ( !R_GetModeInfo( &width, &height, &displayAspect, mode ) )
 	{
@@ -60,6 +252,13 @@ static rserr_t GLimp_SetMode( int mode, qboolean fullscreen, qboolean noborder )
 	if ( fullscreen )
 		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
+	if ( glContext )
+	{
+		GLimp_ClearProcAddresses();
+		SDL_GL_DeleteContext( glContext );
+		glContext = NULL;
+	}
+
 	if ( sdlWindow )
 	{
 		SDL_SetWindowSize( sdlWindow, width, height );
@@ -67,11 +266,15 @@ static rserr_t GLimp_SetMode( int mode, qboolean fullscreen, qboolean noborder )
 	else
 	{
 		SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
-		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 2 );
-		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 1 );
+		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 1 );
 		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
 		SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, 24 );
 		SDL_GL_SetAttribute( SDL_GL_STENCIL_SIZE, 8 );
+		SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 );
+		SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 8 );
+		SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, 8 );
+		SDL_GL_SetAttribute( SDL_GL_ALPHA_SIZE, 8 );
 
 		sdlWindow = SDL_CreateWindow( CLIENT_WINDOW_TITLE, SDL_WINDOWPOS_CENTERED,
 			SDL_WINDOWPOS_CENTERED, width, height, flags );
@@ -98,29 +301,95 @@ static rserr_t GLimp_SetMode( int mode, qboolean fullscreen, qboolean noborder )
 
 	SDL_GL_MakeCurrent( sdlWindow, glContext );
 
+	if ( !GLimp_GetProcAddresses() )
+		ri.Error( ERR_FATAL, "GLimp_GetProcAddresses failed" );
+
 	glConfig.colorBits = 24;
 	glConfig.depthBits = 24;
 	glConfig.stencilBits = 8;
 
 	glstring = (const char *)qglGetString( GL_RENDERER );
 	ri.Printf( PRINT_ALL, "GL_RENDERER: %s\n", glstring ? glstring : "unknown" );
+	ri.Printf( PRINT_ALL, "GL_VERSION: %s\n", (char *)qglGetString( GL_VERSION ) );
+
+	Sys_UpdateViewport4x3( glConfig.vidWidth, glConfig.vidHeight );
 
 	return RSERR_OK;
 }
 
 static void GLimp_InitExtensions( void )
 {
-#ifdef USE_GLES
-	GLES_InitImmediate();
-#endif
+	if ( !r_allowExtensions->integer )
+	{
+		ri.Printf( PRINT_ALL, "* IGNORING OPENGL EXTENSIONS *\n" );
+		return;
+	}
+
+	ri.Printf( PRINT_ALL, "Initializing OpenGL extensions\n" );
 
 	glConfig.textureCompression = TC_NONE;
-	glConfig.textureEnvAddAvailable = qtrue;
-	glConfig.numTextureUnits = 2;
+	glConfig.textureEnvAddAvailable = qfalse;
+
+	if ( QGLES_VERSION_ATLEAST( 1, 0 ) || SDL_GL_ExtensionSupported( "GL_EXT_texture_env_add" ) )
+	{
+		if ( r_ext_texture_env_add->integer )
+			glConfig.textureEnvAddAvailable = qtrue;
+	}
+
+	if ( QGLES_VERSION_ATLEAST( 1, 0 ) || SDL_GL_ExtensionSupported( "GL_ARB_multitexture" ) )
+	{
+		if ( QGLES_VERSION_ATLEAST( 1, 0 ) )
+		{
+			if ( !qglActiveTextureARB ) {
+				qglActiveTextureARB = (void (APIENTRY *)(GLenum)) SDL_GL_GetProcAddress( "glActiveTexture" );
+			}
+			if ( !qglClientActiveTextureARB ) {
+				qglClientActiveTextureARB = (void (APIENTRY *)(GLenum)) SDL_GL_GetProcAddress( "glClientActiveTexture" );
+			}
+		}
+		else if ( r_ext_multitexture->value )
+		{
+			qglMultiTexCoord2fARB = (void (APIENTRY *)(GLenum, GLfloat, GLfloat)) SDL_GL_GetProcAddress( "glMultiTexCoord2fARB" );
+			qglActiveTextureARB = (void (APIENTRY *)(GLenum)) SDL_GL_GetProcAddress( "glActiveTextureARB" );
+			qglClientActiveTextureARB = (void (APIENTRY *)(GLenum)) SDL_GL_GetProcAddress( "glClientActiveTextureARB" );
+		}
+
+		if ( qglActiveTextureARB )
+		{
+			GLint glint = 0;
+			qglGetIntegerv( GL_MAX_TEXTURE_UNITS_ARB, &glint );
+			glConfig.numTextureUnits = (int)glint;
+			if ( glConfig.numTextureUnits < 2 )
+			{
+				glConfig.numTextureUnits = 2;
+			}
+		}
+	}
+
+	if ( glConfig.numTextureUnits < 1 )
+		glConfig.numTextureUnits = 2;
+
+	qglLockArraysEXT = NULL;
+	qglUnlockArraysEXT = NULL;
+
+	textureFilterAnisotropic = qfalse;
+	if ( SDL_GL_ExtensionSupported( "GL_EXT_texture_filter_anisotropic" ) )
+	{
+		if ( r_ext_texture_filter_anisotropic->integer )
+		{
+			qglGetIntegerv( GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, (GLint *)&maxAnisotropy );
+			if ( maxAnisotropy > 0 )
+				textureFilterAnisotropic = qtrue;
+		}
+	}
 
 	Q_strncpyz( glConfig.extensions_string,
-		"GL_ARB_multitexture GL_EXT_texture_env_add GL_EXT_texture_filter_anisotropic",
+		"GL_ARB_multitexture GL_EXT_texture_env_add",
 		sizeof( glConfig.extensions_string ) );
+
+#ifdef USE_GLES_FIXED
+	GLimp_AssignES1DesktopStubs();
+#endif
 }
 
 void GLimp_Init( void )
@@ -152,16 +421,52 @@ void GLimp_Init( void )
 		sizeof( glConfig.version_string ) );
 
 	GLimp_InitExtensions();
+
+#ifdef USE_GLES_FIXED
+	GLimp_AssignES1DesktopStubs();
+#endif
+
+	if ( Cvar_VariableValue( "r_gamma" ) == 1.0f )
+		Cvar_Set( "r_gamma", "1.35" );
+	if ( Cvar_VariableValue( "r_intensity" ) == 1.0f )
+		Cvar_Set( "r_intensity", "1.35" );
+
 	ri.IN_Init();
+	IOS_Layer_Init( sdlWindow );
+}
+
+void GLimp_GetWindowSize( int *width, int *height )
+{
+	int w = 0, h = 0;
+
+	if ( width )
+		*width = 0;
+	if ( height )
+		*height = 0;
+
+	if ( sdlWindow ) {
+		SDL_GL_GetDrawableSize( sdlWindow, &w, &h );
+		if ( w < 1 || h < 1 ) {
+			SDL_GetWindowSize( sdlWindow, &w, &h );
+		}
+	}
+	if ( w < 1 || h < 1 )
+	{
+		w = glConfig.vidWidth;
+		h = glConfig.vidHeight;
+	}
+	if ( width )
+		*width = w;
+	if ( height )
+		*height = h;
 }
 
 void GLimp_Shutdown( void )
 {
-#ifdef USE_GLES
-	GLES_ShutdownImmediate();
-#endif
+	IOS_Layer_Shutdown();
 	if ( glContext )
 	{
+		GLimp_ClearProcAddresses();
 		SDL_GL_DeleteContext( glContext );
 		glContext = NULL;
 	}
@@ -175,7 +480,21 @@ void GLimp_Shutdown( void )
 void GLimp_EndFrame( void )
 {
 	if ( sdlWindow && glContext )
+	{
+		int w, h;
+
+		SDL_GL_GetDrawableSize( sdlWindow, &w, &h );
+		if ( w > 0 && h > 0 )
+		{
+			glConfig.vidWidth = w;
+			glConfig.vidHeight = h;
+			glConfig.windowAspect = (float)w / (float)h;
+		}
+
+		Sys_UpdateViewport4x3( glConfig.vidWidth, glConfig.vidHeight );
+
 		SDL_GL_SwapWindow( sdlWindow );
+	}
 }
 
 void GLimp_Minimize( void ) {}

@@ -22,6 +22,7 @@ Makefile.local
 ####################
 misc/ios/SDL2.framework/
 misc/ios/sdl2-build/
+misc/ios/AppIcon*.png
 
 # Editor / tags
 ####################

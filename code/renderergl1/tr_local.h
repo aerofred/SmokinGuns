@@ -32,12 +32,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../renderercommon/tr_common.h"
 #include "../renderercommon/iqm.h"
 #include "../renderercommon/qgl.h"
-#if defined( USE_GLES ) || defined( IOS )
+#if defined( USE_GLES_FIXED ) || defined( USE_GLES )
 #include "../renderercommon/gl_legacy_const.h"
 #endif
 
+#if defined( USE_GLES_FIXED )
+#define GL_INDEX_TYPE		GL_UNSIGNED_SHORT
+typedef unsigned short glIndex_t;
+#else
 #define GL_INDEX_TYPE		GL_UNSIGNED_INT
 typedef unsigned int glIndex_t;
+#endif
 
 // 14 bits
 // can't be increased without changing bit packing for drawsurfs
@@ -1646,6 +1651,13 @@ void RB_ExecuteRenderCommands( const void *data );
 void R_IssuePendingRenderCommands( void );
 
 void R_AddDrawSurfCmd( drawSurf_t *drawSurfs, int numDrawSurfs );
+
+#ifdef USE_GLES_FIXED
+void R_ConvertTextureFormat( const byte *in, int width, int height, GLenum format, GLenum type, byte *out );
+#endif
+void R_DrawElements( int numIndexes, const glIndex_t *indexes );
+void RB_InstantQuad2( vec4_t quadVerts[4], vec2_t texCoords[4] );
+void RB_InstantQuad( vec4_t quadVerts[4] );
 
 void RE_SetColor( const float *rgba );
 void RE_StretchPic ( float x, float y, float w, float h,

@@ -986,6 +986,12 @@ Unix specific initialisation
 */
 void Sys_PlatformInit( void )
 {
+#ifdef IOS
+	extern void IOS_Loading_Begin( void );
+	IOS_Loading_Begin();
+	return;
+#endif
+
 	const char* term = getenv( "TERM" );
 
 	signal( SIGHUP, Sys_SigHandler );

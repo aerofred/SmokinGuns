@@ -225,7 +225,7 @@ itemDef {
 	type 1
 	style WINDOW_STYLE_FILLED
 	background "ui/wq3_assets/button.tga"
-      	rect 16 124 96 24
+      	rect 16 148 96 24
       	textalign 1	
       	textalignx 48      
       	textaligny 20
@@ -242,15 +242,15 @@ itemDef {
 		group grpControlbutton
 		style WINDOW_STYLE_SHADER
 		background "ui/wq3_assets/button_selected.tga"
- 		rect 16 124 96 24
+ 		rect 16 148 96 24
       		visible 0
 		decoration	  
     		}
 	itemdef
 		{
-		name about_tex
+		name options_tex
 		style 3
-		rect 0 124 128 24
+		rect 0 148 128 24
 		background "ui/wq3_assets/menu_tex.tga"	
 		visible 1
 		decoration
@@ -262,7 +262,7 @@ itemDef {
 	type 1
 	style WINDOW_STYLE_FILLED
 	background "ui/wq3_assets/button.tga"
-      	rect 16 148 96 24
+      	rect 16 172 96 24
       	textalign 1	
       	textalignx 48     
       	textaligny 20
@@ -279,15 +279,15 @@ itemDef {
 		group grpControlbutton
 		style WINDOW_STYLE_SHADER
 		background "ui/wq3_assets/button_selected.tga"
- 		rect 16 148 96 24
+ 		rect 16 172 96 24
       		visible 0
 		decoration	  
     		}
 	itemdef
 		{
-		name about_tex
+		name system_tex
 		style 3
-		rect 0 148 128 24
+		rect 0 172 128 24
 		background "ui/wq3_assets/menu_tex.tga"	
 		visible 1
 		decoration
@@ -299,7 +299,7 @@ itemDef {
 	type 1
 	style WINDOW_STYLE_FILLED
 	background "ui/wq3_assets/button.tga"
-      	rect 16 172 96 24
+      	rect 16 196 96 24
       	textalign 1	
       	textalignx 48     
       	textaligny 20
@@ -316,15 +316,15 @@ itemDef {
 		group grpControlbutton
 		style WINDOW_STYLE_SHADER
 		background "ui/wq3_assets/button_selected.tga"
- 		rect 16 172 96 24
+ 		rect 16 196 96 24
       		visible 0
 		decoration	  
     		}
 	itemdef
 		{
-		name about_tex
+		name vote_tex
 		style 3
-		rect 0 172 128 24
+		rect 0 196 128 24
 		background "ui/wq3_assets/menu_tex.tga"	
 		visible 1
 		decoration
@@ -336,7 +336,7 @@ itemDef {
 	type 1
 	style WINDOW_STYLE_FILLED
 	background "ui/wq3_assets/button.tga"
-      	rect 16 196 96 24
+      	rect 16 220 96 24
       	textalign 1	
       	textalignx 48      
       	textaligny 20
@@ -353,15 +353,15 @@ itemDef {
 		group grpControlbutton
 		style WINDOW_STYLE_SHADER
 		background "ui/wq3_assets/button_selected.tga"
- 		rect 16 196 96 24
+ 		rect 16 220 96 24
       		visible 0
 		decoration	  
     		}
 	itemdef
 		{
-		name about_tex
+		name callvote_tex
 		style 3
-		rect 0 196 128 24
+		rect 0 220 128 24
 		background "ui/wq3_assets/menu_tex.tga"	
 		visible 1
 		decoration
@@ -371,7 +371,7 @@ itemdef
 	{
 	name about
 	text "Serverinfo"	
-	rect 16 220 96 24
+	rect 16 244 96 24
 	type 1
 	style WINDOW_STYLE_FILLED
 	background "ui/wq3_assets/button.tga"
@@ -391,15 +391,15 @@ itemdef
 		group grpControlbutton
 		style WINDOW_STYLE_SHADER
 		background "ui/wq3_assets/button_selected.tga"
- 		rect 16 220 96 24
+ 		rect 16 244 96 24
       		visible 0
 		decoration	  
     		}	
 	itemdef
 		{
-		name about_tex
+		name about_server_tex
 		style 3
-		rect 0 220 128 24
+		rect 0 244 128 24
 		background "ui/wq3_assets/menu_tex.tga"	
 		visible 1
 		decoration
@@ -411,7 +411,7 @@ itemDef {
 	type 1
 	style WINDOW_STYLE_FILLED
 	background "ui/wq3_assets/button.tga"
-      	rect 16 244 96 24
+      	rect 16 268 96 24
       	textalign 1	
       	textalignx 48      
       	textaligny 20
@@ -428,15 +428,15 @@ itemDef {
 		group grpControlbutton
 		style WINDOW_STYLE_SHADER
 		background "ui/wq3_assets/button_selected.tga"
- 		rect 16 244 96 24
+ 		rect 16 268 96 24
       		visible 0
 		decoration	  
     		}
 	itemdef
 		{
-		name about_tex
+		name leave_tex
 		style 3
-		rect 0 244 128 24
+		rect 0 268 128 24
 		background "ui/wq3_assets/menu_tex.tga"	
 		visible 1
 		decoration
@@ -446,7 +446,7 @@ itemdef
 	{
 	name endframe
 	style 3
-	rect 0 268 128 24
+	rect 0 292 128 24
       	textalign 1	
 	background "ui/wq3_assets/menu_end.tga"	
 	visible 1

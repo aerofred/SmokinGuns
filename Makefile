@@ -418,11 +418,11 @@ ifeq ($(PLATFORM),ios)
   ifndef USE_SDL2
     USE_SDL2=1
   endif
-  ifndef USE_GLES
-    USE_GLES=1
+  ifndef USE_GLES_FIXED
+    USE_GLES_FIXED=1
   endif
 
-  BASE_CFLAGS += -DUSE_SDL2=1 -DUSE_GLES=1 -DNO_VM_COMPILED
+  BASE_CFLAGS += -DUSE_SDL2=1 -DUSE_GLES_FIXED=1 -DNO_VM_COMPILED
 
   ifndef IOS_SDK
     IOS_SDK:= $(shell xcrun --sdk iphoneos --show-sdk-path 2>/dev/null)
@@ -2174,11 +2174,14 @@ ifeq ($(PLATFORM),ios)
     $(B)/client/sdl_snd_ios.o \
     $(B)/client/cl_touch.o \
     $(B)/client/ios_main.o \
+    $(B)/client/ios_layer.o \
+    $(B)/client/ios_loading.o \
+    $(B)/client/ios_touch_settings.o \
     $(B)/client/sys_ios.o
   Q3ROBJ := $(filter-out $(B)/renderergl1/sdl_glimp.o $(B)/renderergl1/sdl_gamma.o,$(Q3ROBJ))
   Q3ROBJ += \
     $(B)/renderergl1/sdl_glimp_ios.o \
-    $(B)/renderergl1/gles_immediate.o
+    $(B)/renderergl1/gles_es1_stubs.o
   Q3ROBJ := $(filter-out $(B)/renderergl1/tr_framebuffer.o $(B)/renderergl1/tr_glslprogs.o,$(Q3ROBJ))
   CLIENTBIN=SmokinGuns
   TARGETS := $(B)/SmokinGuns.arm64
@@ -2725,6 +2728,15 @@ $(B)/client/%.o: $(SYSDIR)/%.m
 	$(DO_CC)
 
 $(B)/client/ios_main.o: $(MOUNT_DIR)/ios/ios_main.m
+	$(DO_CC)
+
+$(B)/client/ios_layer.o: $(MOUNT_DIR)/ios/ios_layer.m
+	$(DO_CC)
+
+$(B)/client/ios_loading.o: $(MOUNT_DIR)/ios/ios_loading.m
+	$(DO_CC)
+
+$(B)/client/ios_touch_settings.o: $(MOUNT_DIR)/ios/ios_touch_settings.m
 	$(DO_CC)
 
 $(B)/client/%.o: $(SYSDIR)/%.rc

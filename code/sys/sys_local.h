@@ -75,3 +75,9 @@ void Sys_LockMyself(const char *qjail, const char *quser);
 void Sys_Daemonize( void );
 #endif
 #endif
+
+#ifdef IOS
+void Sys_UpdateViewport4x3( int vidWidth, int vidHeight );
+void Sys_GetViewport4x3( int *x, int *y, int *width, int *height );
+void Sys_GetViewport640Mapping( float *xscale, float *yscale, float *xbias, float *ybias );
+#endif

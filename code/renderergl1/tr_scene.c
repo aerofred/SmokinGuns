@@ -22,6 +22,33 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_local.h"
 
+#ifdef IOS
+#include "../sys/sys_local.h"
+
+static void R_IOS_AdjustRefdef( void ) {
+	float x, fov_y;
+	int baseX, baseY, baseW, baseH;
+
+	Sys_UpdateViewport4x3( glConfig.vidWidth, glConfig.vidHeight );
+	Sys_GetViewport4x3( &baseX, &baseY, &baseW, &baseH );
+
+	if ( baseW <= 0 || baseH <= 0 ) {
+		return;
+	}
+
+	tr.refdef.x = baseX;
+	tr.refdef.y = baseY;
+	tr.refdef.width = baseW;
+	tr.refdef.height = baseH;
+
+	x = tr.refdef.width / tan( tr.refdef.fov_x / 360.0f * M_PI );
+	if ( x > 0.0f ) {
+		fov_y = atan2( tr.refdef.height, x ) * 360.0f / M_PI;
+		tr.refdef.fov_y = fov_y;
+	}
+}
+#endif
+
 int			r_firstSceneDrawSurf;
 
 int			r_numdlights;
@@ -312,6 +339,10 @@ void RE_RenderScene( const refdef_t *fd ) {
 	tr.refdef.height = fd->height;
 	tr.refdef.fov_x = fd->fov_x;
 	tr.refdef.fov_y = fd->fov_y;
+
+#ifdef IOS
+	R_IOS_AdjustRefdef();
+#endif
 
 	VectorCopy( fd->vieworg, tr.refdef.vieworg );
 	VectorCopy( fd->viewaxis[0], tr.refdef.viewaxis[0] );

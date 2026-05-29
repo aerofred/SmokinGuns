@@ -777,6 +777,10 @@ int main( int argc, char **argv )
 #endif
 
 	Com_Init( commandLine );
+#ifdef IOS
+	extern void IOS_Loading_End( void );
+	IOS_Loading_End();
+#endif
 	NET_Init( );
 
 	CON_Init( );

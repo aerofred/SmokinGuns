@@ -907,7 +907,8 @@ RB_SurfaceFace
 */
 static void RB_SurfaceFace( srfSurfaceFace_t *surf ) {
 	int			i;
-	unsigned	*indices, *tessIndexes;
+	unsigned	*indices;
+	glIndex_t	*tessIndexes;
 	float		*v;
 	float		*normal;
 	int			ndx;
@@ -1220,7 +1221,11 @@ static void RB_SurfaceFlare(srfFlare_t *surf)
 static void RB_SurfaceDisplayList( srfDisplayList_t *surf ) {
 	// all apropriate state must be set in RB_BeginSurface
 	// this isn't implemented yet...
+#ifdef USE_GLES_FIXED
+	(void)surf;
+#else
 	qglCallList( surf->listNum );
+#endif
 }
 
 static void RB_SurfaceSkip( void *surf ) {

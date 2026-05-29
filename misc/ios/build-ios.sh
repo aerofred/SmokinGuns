@@ -44,6 +44,14 @@ else
 fi
 
 echo "=== Building iOS client ==="
+# MMD .d files can list removed headers after refactors; drop affected objects.
+if [ -d "${IOS_BUILD}" ]; then
+	while IFS= read -r -d '' d; do
+		if grep -qE 'ios_public\.h|ios_overlay' "$d" 2>/dev/null; then
+			rm -f "${d%.d}.o" "$d"
+		fi
+	done < <(find "${IOS_BUILD}" -name '*.d' -print0 2>/dev/null)
+fi
 make -f Makefile -f Makefile.ios \
 	PLATFORM=ios ARCH=arm64 \
 	B="${IOS_BUILD}" \
@@ -63,6 +71,9 @@ rm -rf "${APP}"
 mkdir -p "${APP}"
 
 cp "${SCRIPT_DIR}/Info.plist" "${APP}/Info.plist"
+
+chmod +x "${SCRIPT_DIR}/make_icons.sh"
+"${SCRIPT_DIR}/make_icons.sh" "${APP}"
 
 chmod +x "${SCRIPT_DIR}/copy_game_data.sh"
 "${SCRIPT_DIR}/copy_game_data.sh" "${APP}"

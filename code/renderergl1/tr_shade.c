@@ -164,12 +164,24 @@ instead of using the single glDrawElements call that may be inefficient
 without compiled vertex arrays.
 ==================
 */
-static void R_DrawElements( int numIndexes, const glIndex_t *indexes ) {
+void R_DrawElements( int numIndexes, const glIndex_t *indexes ) {
 	int		primitives;
 
 	primitives = r_primitives->integer;
 
-	// default is to use triangles if compiled vertex arrays are present
+#ifdef USE_GLES_FIXED
+	if ( qglesMajorVersion >= 1 ) {
+		if ( primitives == 0 ) {
+			primitives = 2;
+		}
+
+		if ( primitives == 1 || primitives == 3 ) {
+			ri.Printf( PRINT_WARNING, "OpenGL ES does not support glBegin() required for r_primitives %d\n", primitives );
+			ri.Cvar_Set( "r_primitives", "0" );
+			primitives = 2;
+		}
+	} else
+#endif
 	if ( primitives == 0 ) {
 		if ( qglLockArraysEXT ) {
 			primitives = 2;
@@ -363,7 +375,10 @@ static void DrawMultitextured( shaderCommands_t *input, int stage ) {
 	// base
 	//
 	GL_SelectTexture( 0 );
+	qglEnable( GL_TEXTURE_2D );
+	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
 	qglTexCoordPointer( 2, GL_FLOAT, 0, input->svars.texcoords[0] );
+	GL_TexEnv( GL_MODULATE );
 	R_BindAnimatedImage( &pStage->bundle[0] );
 
 	//
@@ -388,7 +403,6 @@ static void DrawMultitextured( shaderCommands_t *input, int stage ) {
 	//
 	// disable texturing on TEXTURE1, then select TEXTURE0
 	//
-	//qglDisableClientState( GL_TEXTURE_COORD_ARRAY );
 	qglDisable( GL_TEXTURE_2D );
 
 	GL_SelectTexture( 0 );
@@ -422,7 +436,7 @@ static void ProjectDlightTexture_altivec( void ) {
 	byte	clipBits[SHADER_MAX_VERTEXES];
 	float	texCoordsArray[SHADER_MAX_VERTEXES][2];
 	byte	colorArray[SHADER_MAX_VERTEXES][4];
-	unsigned	hitIndexes[SHADER_MAX_INDEXES];
+	glIndex_t	hitIndexes[SHADER_MAX_INDEXES];
 	int		numIndexes;
 	float	scale;
 	float	radius;
@@ -594,7 +608,7 @@ static void ProjectDlightTexture_scalar( void ) {
 	byte	clipBits[SHADER_MAX_VERTEXES];
 	float	texCoordsArray[SHADER_MAX_VERTEXES][2];
 	byte	colorArray[SHADER_MAX_VERTEXES][4];
-	unsigned	hitIndexes[SHADER_MAX_INDEXES];
+	glIndex_t	hitIndexes[SHADER_MAX_INDEXES];
 	int		numIndexes;
 	float	scale;
 	float	radius;
@@ -1427,7 +1441,9 @@ void RB_StageIteratorLightmappedMultitexture( void ) {
 	//
 	GL_SelectTexture( 0 );
 
+	qglEnable( GL_TEXTURE_2D );
 	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
+	GL_TexEnv( GL_MODULATE );
 	R_BindAnimatedImage( &tess.xstages[0]->bundle[0] );
 	qglTexCoordPointer( 2, GL_FLOAT, 16, tess.texCoords[0][0] );
 
@@ -1436,10 +1452,11 @@ void RB_StageIteratorLightmappedMultitexture( void ) {
 	//
 	GL_SelectTexture( 1 );
 	qglEnable( GL_TEXTURE_2D );
+	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
 	if ( r_lightmap->integer ) {
 		GL_TexEnv( GL_REPLACE );
 	} else {
-		GL_TexEnv( GL_MODULATE );
+		GL_TexEnv( tess.shader->multitextureEnv );
 	}
 	R_BindAnimatedImage( &tess.xstages[0]->bundle[1] );
 	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );

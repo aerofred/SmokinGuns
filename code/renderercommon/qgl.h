@@ -27,7 +27,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef __QGL_H__
 #define __QGL_H__
 
-#if defined( USE_GLES ) || defined( IOS )
+#if defined( USE_GLES_FIXED )
+#	include "qgl_es1.h"
+#elif defined( USE_GLES )
 #	include "qgl_gles.h"
 #else
 

@@ -34,6 +34,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "qcommon.h"
 #include "unzip.h"
 
+#ifdef IOS
+#include "../ios/ios_loading.h"
+#include <sys/stat.h>
+#endif
+
 /*
 =============================================================================
 
@@ -257,6 +262,9 @@ static	cvar_t		*fs_apppath;
 static	cvar_t		*fs_basepath;
 static	cvar_t		*fs_basegame;
 static	cvar_t		*fs_gamedirvar;
+#ifdef IOS
+static	cvar_t		*fs_pk3cache;
+#endif
 static	searchpath_t	*fs_searchpaths;
 static	int			fs_readCount;			// total bytes read
 static	int			fs_loadCount;			// total files read
@@ -2005,7 +2013,269 @@ Creates a new pak_t in the search chain for the contents
 of a zip file.
 =================
 */
-static pack_t *FS_LoadZipFile(const char *zipfile, const char *basename)
+
+#ifdef IOS
+#define FS_PK3CACHE_MAGIC   0x3150434b /* 'KCP1' */
+#define FS_PK3CACHE_VERSION 1
+
+typedef struct {
+	int magic;
+	int version;
+	int checksumFeed;
+	unsigned long fileSize;
+	unsigned long fileMtime;
+	int numfiles;
+	int hashSize;
+	int checksum;
+	int pure_checksum;
+} fsPk3CacheHeader_t;
+
+typedef struct {
+	unsigned long pos;
+	unsigned long len;
+	short nameLen;
+	short pad;
+} fsPk3CacheEntry_t;
+
+static void FS_PakCachePath( const char *zipfile, char *out, int outSize )
+{
+	char hash[9];
+	unsigned int h;
+
+	if ( !out || outSize < 1 || !fs_homepath || !fs_homepath->string[0] )
+	{
+		if ( out && outSize > 0 )
+			out[0] = '\0';
+		return;
+	}
+
+	h = (unsigned int)MSG_HashKey( zipfile, MAX_OSPATH );
+	Com_sprintf( hash, sizeof( hash ), "%08x", h );
+	Com_sprintf( out, outSize, "%s/pk3cache/%s.pkc", fs_homepath->string, hash );
+}
+
+static qboolean FS_StatPakFile( const char *zipfile, unsigned long *sizeOut, unsigned long *mtimeOut )
+{
+	struct stat st;
+
+	if ( stat( zipfile, &st ) != 0 )
+		return qfalse;
+
+	if ( sizeOut )
+		*sizeOut = (unsigned long)st.st_size;
+	if ( mtimeOut )
+		*mtimeOut = (unsigned long)st.st_mtime;
+	return qtrue;
+}
+
+static pack_t *FS_LoadZipFileFromCache( const char *zipfile, const char *basename,
+	unsigned long fileSize, unsigned long fileMtime )
+{
+	fsPk3CacheHeader_t hdr;
+	fsPk3CacheEntry_t entry;
+	pack_t *pack;
+	fileInPack_t *buildBuffer;
+	char *namePtr;
+	char cachePath[MAX_OSPATH];
+	FILE *fp;
+	unzFile uf;
+	int i, len, totalNames;
+	long hash;
+
+	if ( !fs_pk3cache || !fs_pk3cache->integer )
+		return NULL;
+
+	FS_PakCachePath( zipfile, cachePath, sizeof( cachePath ) );
+	if ( !cachePath[0] )
+		return NULL;
+
+	fp = fopen( cachePath, "rb" );
+	if ( !fp )
+		return NULL;
+
+	if ( fread( &hdr, sizeof( hdr ), 1, fp ) != 1 )
+	{
+		fclose( fp );
+		return NULL;
+	}
+
+	hdr.magic = LittleLong( hdr.magic );
+	hdr.version = LittleLong( hdr.version );
+	hdr.checksumFeed = LittleLong( hdr.checksumFeed );
+	hdr.fileSize = LittleLong( hdr.fileSize );
+	hdr.fileMtime = LittleLong( hdr.fileMtime );
+	hdr.numfiles = LittleLong( hdr.numfiles );
+	hdr.hashSize = LittleLong( hdr.hashSize );
+	hdr.checksum = LittleLong( hdr.checksum );
+	hdr.pure_checksum = LittleLong( hdr.pure_checksum );
+
+	if ( hdr.magic != FS_PK3CACHE_MAGIC || hdr.version != FS_PK3CACHE_VERSION
+		|| hdr.checksumFeed != fs_checksumFeed || hdr.fileSize != fileSize
+		|| hdr.fileMtime != fileMtime || hdr.numfiles <= 0 || hdr.hashSize <= 0 )
+	{
+		fclose( fp );
+		return NULL;
+	}
+
+	totalNames = 0;
+	fseek( fp, (long)sizeof( fsPk3CacheHeader_t ), SEEK_SET );
+	for ( i = 0; i < hdr.numfiles; i++ )
+	{
+		if ( fread( &entry, sizeof( entry ), 1, fp ) != 1 )
+		{
+			fclose( fp );
+			return NULL;
+		}
+		entry.nameLen = LittleShort( entry.nameLen );
+		if ( entry.nameLen <= 0 || entry.nameLen >= MAX_ZPATH )
+		{
+			fclose( fp );
+			return NULL;
+		}
+		totalNames += entry.nameLen;
+		if ( fseek( fp, entry.nameLen, SEEK_CUR ) != 0 )
+		{
+			fclose( fp );
+			return NULL;
+		}
+	}
+
+	uf = unzOpen( zipfile );
+	if ( !uf )
+	{
+		fclose( fp );
+		return NULL;
+	}
+
+	pack = Z_Malloc( sizeof( pack_t ) + hdr.hashSize * sizeof( fileInPack_t * ) );
+	pack->hashSize = hdr.hashSize;
+	pack->hashTable = (fileInPack_t **)( ( (char *)pack ) + sizeof( pack_t ) );
+	for ( i = 0; i < pack->hashSize; i++ )
+		pack->hashTable[i] = NULL;
+
+	buildBuffer = Z_Malloc( hdr.numfiles * sizeof( fileInPack_t ) + totalNames );
+	namePtr = ( (char *)buildBuffer ) + hdr.numfiles * sizeof( fileInPack_t );
+
+	Q_strncpyz( pack->pakFilename, zipfile, sizeof( pack->pakFilename ) );
+	Q_strncpyz( pack->pakBasename, basename, sizeof( pack->pakBasename ) );
+	if ( strlen( pack->pakBasename ) > 4
+		&& !Q_stricmp( pack->pakBasename + strlen( pack->pakBasename ) - 4, ".pk3" ) )
+	{
+		pack->pakBasename[strlen( pack->pakBasename ) - 4] = 0;
+	}
+
+	pack->handle = uf;
+	pack->numfiles = hdr.numfiles;
+	pack->checksum = hdr.checksum;
+	pack->pure_checksum = hdr.pure_checksum;
+	pack->referenced = 0;
+
+	fseek( fp, (long)sizeof( fsPk3CacheHeader_t ), SEEK_SET );
+	for ( i = 0; i < hdr.numfiles; i++ )
+	{
+		if ( fread( &entry, sizeof( entry ), 1, fp ) != 1 )
+		{
+			fclose( fp );
+			unzClose( uf );
+			Z_Free( buildBuffer );
+			Z_Free( pack );
+			return NULL;
+		}
+		entry.pos = LittleLong( entry.pos );
+		entry.len = LittleLong( entry.len );
+		entry.nameLen = LittleShort( entry.nameLen );
+
+		if ( fread( namePtr, entry.nameLen, 1, fp ) != 1 )
+		{
+			fclose( fp );
+			unzClose( uf );
+			Z_Free( buildBuffer );
+			Z_Free( pack );
+			return NULL;
+		}
+		namePtr[entry.nameLen] = '\0';
+
+		buildBuffer[i].name = namePtr;
+		buildBuffer[i].pos = entry.pos;
+		buildBuffer[i].len = entry.len;
+		namePtr += entry.nameLen + 1;
+
+		hash = FS_HashFileName( buildBuffer[i].name, pack->hashSize );
+		buildBuffer[i].next = pack->hashTable[hash];
+		pack->hashTable[hash] = &buildBuffer[i];
+	}
+
+	fclose( fp );
+	pack->buildBuffer = buildBuffer;
+	Com_DPrintf( "FS_LoadZipFileFromCache: %s (%d files)\n", zipfile, hdr.numfiles );
+	return pack;
+}
+
+static void FS_SaveZipFileCache( const char *zipfile, pack_t *pack,
+	unsigned long fileSize, unsigned long fileMtime )
+{
+	fsPk3CacheHeader_t hdr;
+	fsPk3CacheEntry_t entry;
+	char cachePath[MAX_OSPATH];
+	char cacheDir[MAX_OSPATH];
+	FILE *fp;
+	int i;
+
+	if ( !pack || !fs_pk3cache || !fs_pk3cache->integer || !fs_homepath || !fs_homepath->string[0] )
+		return;
+
+	FS_PakCachePath( zipfile, cachePath, sizeof( cachePath ) );
+	if ( !cachePath[0] )
+		return;
+
+	Com_sprintf( cacheDir, sizeof( cacheDir ), "%s/pk3cache", fs_homepath->string );
+	FS_CreatePath( cacheDir );
+
+	fp = fopen( cachePath, "wb" );
+	if ( !fp )
+		return;
+
+	hdr.magic = LittleLong( FS_PK3CACHE_MAGIC );
+	hdr.version = LittleLong( FS_PK3CACHE_VERSION );
+	hdr.checksumFeed = LittleLong( fs_checksumFeed );
+	hdr.fileSize = LittleLong( fileSize );
+	hdr.fileMtime = LittleLong( fileMtime );
+	hdr.numfiles = LittleLong( pack->numfiles );
+	hdr.hashSize = LittleLong( pack->hashSize );
+	hdr.checksum = LittleLong( pack->checksum );
+	hdr.pure_checksum = LittleLong( pack->pure_checksum );
+
+	if ( fwrite( &hdr, sizeof( hdr ), 1, fp ) != 1 )
+	{
+		fclose( fp );
+		remove( cachePath );
+		return;
+	}
+
+	for ( i = 0; i < pack->numfiles; i++ )
+	{
+		short nlen = (short)strlen( pack->buildBuffer[i].name );
+
+		entry.pos = LittleLong( pack->buildBuffer[i].pos );
+		entry.len = LittleLong( pack->buildBuffer[i].len );
+		entry.nameLen = LittleShort( nlen );
+		entry.pad = 0;
+
+		if ( fwrite( &entry, sizeof( entry ), 1, fp ) != 1
+			|| fwrite( pack->buildBuffer[i].name, nlen, 1, fp ) != 1 )
+		{
+			fclose( fp );
+			remove( cachePath );
+			return;
+		}
+	}
+
+	fclose( fp );
+	Com_DPrintf( "FS_SaveZipFileCache: %s\n", cachePath );
+}
+#endif /* IOS */
+
+static pack_t *FS_LoadZipFileSlow( const char *zipfile, const char *basename )
 {
 	fileInPack_t	*buildBuffer;
 	pack_t			*pack;
@@ -2092,6 +2362,11 @@ static pack_t *FS_LoadZipFile(const char *zipfile, const char *basename)
 		buildBuffer[i].next = pack->hashTable[hash];
 		pack->hashTable[hash] = &buildBuffer[i];
 		unzGoToNextFile(uf);
+
+#ifdef IOS
+		if ( ( i & 0xFF ) == 0 )
+			IOS_Loading_PumpUI();
+#endif
 	}
 
 	pack->checksum = Com_BlockChecksum( &fs_headerLongs[ 1 ], sizeof(*fs_headerLongs) * ( fs_numHeaderLongs - 1 ) );
@@ -2103,6 +2378,35 @@ static pack_t *FS_LoadZipFile(const char *zipfile, const char *basename)
 
 	pack->buildBuffer = buildBuffer;
 	return pack;
+}
+
+static pack_t *FS_LoadZipFile( const char *zipfile, const char *basename )
+{
+#ifdef IOS
+	unsigned long fileSize = 0, fileMtime = 0;
+	pack_t *pak;
+	char status[MAX_OSPATH + 32];
+
+	if ( fs_pk3cache && fs_pk3cache->integer && FS_StatPakFile( zipfile, &fileSize, &fileMtime ) )
+	{
+		Com_sprintf( status, sizeof( status ), "Chargement %s…", basename );
+		IOS_Loading_SetProgress( -1.0f, status );
+
+		pak = FS_LoadZipFileFromCache( zipfile, basename, fileSize, fileMtime );
+		if ( pak )
+			return pak;
+
+		Com_sprintf( status, sizeof( status ), "Indexation %s…", basename );
+		IOS_Loading_SetProgress( -1.0f, status );
+	}
+
+	pak = FS_LoadZipFileSlow( zipfile, basename );
+	if ( pak && fs_pk3cache && fs_pk3cache->integer && fileSize > 0 )
+		FS_SaveZipFileCache( zipfile, pak, fileSize, fileMtime );
+	return pak;
+#else
+	return FS_LoadZipFileSlow( zipfile, basename );
+#endif
 }
 
 /*
@@ -3276,6 +3580,9 @@ static void FS_Startup( const char *gameName )
 	fs_packFiles = 0;
 
 	fs_debug = Cvar_Get( "fs_debug", "0", 0 );
+#ifdef IOS
+	fs_pk3cache = Cvar_Get( "fs_pk3cache", "1", CVAR_ARCHIVE );
+#endif
 	fs_basepath = Cvar_Get ("fs_basepath", Sys_DefaultInstallPath(), CVAR_INIT|CVAR_PROTECTED );
 #ifndef SMOKINGUNS
 	fs_basegame = Cvar_Get ("fs_basegame", "", CVAR_INIT );
