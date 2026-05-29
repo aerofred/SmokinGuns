@@ -445,9 +445,10 @@ void GLimp_GetWindowSize( int *width, int *height )
 		*height = 0;
 
 	if ( sdlWindow ) {
-		SDL_GL_GetDrawableSize( sdlWindow, &w, &h );
+		/* UIKit overlay uses point coordinates; match SDL window size, not drawable pixels */
+		SDL_GetWindowSize( sdlWindow, &w, &h );
 		if ( w < 1 || h < 1 ) {
-			SDL_GetWindowSize( sdlWindow, &w, &h );
+			SDL_GL_GetDrawableSize( sdlWindow, &w, &h );
 		}
 	}
 	if ( w < 1 || h < 1 )

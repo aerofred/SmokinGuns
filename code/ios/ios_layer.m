@@ -318,18 +318,28 @@ void IOS_TouchSettings_Present( UIViewController *host );
 	self.hidden = NO;
 
 	CGFloat d = o->moveR * 2.0f;
+	_moveStick.hidden = NO;
 	_moveStick.frame = CGRectMake( o->moveCx - o->moveR, o->moveCy - o->moveR, d, d );
 	_moveStick.knobOffset = CGPointMake( o->moveKnobX - o->moveCx, o->moveKnobY - o->moveCy );
 	[_moveStick setNeedsDisplay];
 
 	d = o->lookR * 2.0f;
+	_lookStick.hidden = NO;
 	_lookStick.frame = CGRectMake( o->lookCx - o->lookR, o->lookCy - o->lookR, d, d );
 	_lookStick.knobOffset = CGPointMake( o->lookKnobX - o->lookCx, o->lookKnobY - o->lookCy );
 	[_lookStick setNeedsDisplay];
 
+	_fireBtn.hidden = NO;
 	_fireBtn.frame = CGRectMake( o->fireX, o->fireY, o->fireW, o->fireH );
+	[_fireBtn setNeedsDisplay];
+
+	_jumpBtn.hidden = NO;
 	_jumpBtn.frame = CGRectMake( o->jumpX, o->jumpY, o->jumpW, o->jumpH );
+	[_jumpBtn setNeedsDisplay];
+
+	_settingsBtn.hidden = NO;
 	_settingsBtn.frame = CGRectMake( 8, 8, 44, 44 );
+	[_settingsBtn setNeedsDisplay];
 }
 
 @end
@@ -406,7 +416,9 @@ static void IOS_Layer_SyncOverlayFrame( void )
 		bounds = UIScreen.mainScreen.bounds;
 
 	gOverlayWindow.frame = bounds;
-	gOverlay.frame = gOverlayRoot.view.bounds;
+	if ( gOverlayRoot )
+		gOverlayRoot.view.frame = bounds;
+	gOverlay.frame = bounds;
 }
 
 static void IOS_Layer_RestoreSdlKeyWindow( void )
@@ -474,6 +486,7 @@ static void IOS_Layer_ShowOverlayWindow( void )
 
 	gOverlayWindow.hidden = NO;
 	gOverlayWindow.userInteractionEnabled = YES;
+	gOverlay.hidden = NO;
 	[gOverlayWindow makeKeyAndVisible];
 }
 
