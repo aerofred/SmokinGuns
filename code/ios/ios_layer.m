@@ -493,18 +493,52 @@ static void IOS_Layer_ShowOverlayWindow( void )
 void IOS_Layer_SetGameOverlayVisible( qboolean visible )
 {
 	gForceHideOverlay = visible ? qfalse : qtrue;
+	if ( gForceHideOverlay )
+	{
+		if ( gOverlay )
+			gOverlay.hidden = YES;
+		if ( gOverlayWindow )
+		{
+			gOverlayWindow.hidden = YES;
+			gOverlayWindow.userInteractionEnabled = NO;
+		}
+		IOS_Layer_RestoreSdlKeyWindow();
+		return;
+	}
+
 	if ( gOverlayWindow )
-		gOverlayWindow.hidden = gForceHideOverlay ? YES : NO;
+	{
+		gOverlayWindow.hidden = NO;
+		gOverlayWindow.userInteractionEnabled = YES;
+	}
 }
 
 void IOS_Layer_OpenTouchSettings( void )
 {
-	UIViewController *host = gOverlayRoot ? gOverlayRoot : gSdlWindow.rootViewController;
-	if ( !host )
-		return;
-
 	dispatch_async( dispatch_get_main_queue(), ^{
-		IOS_Layer_SetGameOverlayVisible( qfalse );
+		UIViewController *host = nil;
+
+		if ( gSdlWindow && gSdlWindow.rootViewController )
+			host = gSdlWindow.rootViewController;
+		else if ( gOverlayRoot )
+			host = gOverlayRoot;
+
+		if ( !host )
+			return;
+
+		/* Masquer les sticks sans présenter la feuille sur une fenêtre cachée */
+		gForceHideOverlay = qtrue;
+		if ( gOverlay )
+			gOverlay.hidden = YES;
+		if ( gOverlayWindow )
+		{
+			gOverlayWindow.hidden = YES;
+			gOverlayWindow.userInteractionEnabled = NO;
+		}
+
+		if ( gSdlWindow )
+			[gSdlWindow makeKeyAndVisible];
+
 		IOS_TouchSettings_Present( host );
 	} );
 }

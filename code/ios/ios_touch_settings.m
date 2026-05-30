@@ -54,16 +54,18 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 	IN_TouchReadConfig( &_cfg );
 }
 
-- (void)viewWillDisappear:(BOOL)animated
+- (void)viewDidDisappear:(BOOL)animated
 {
-	[super viewWillDisappear:animated];
+	[super viewDidDisappear:animated];
 	if ( self.isBeingDismissed || self.navigationController.isBeingDismissed )
 		IOS_Layer_SetGameOverlayVisible( qtrue );
 }
 
 - (void)onDone
 {
-	[self dismissViewControllerAnimated:YES completion:nil];
+	[self dismissViewControllerAnimated:YES completion:^{
+		IOS_Layer_SetGameOverlayVisible( qtrue );
+	}];
 }
 
 - (void)onReset
