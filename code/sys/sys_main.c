@@ -262,9 +262,13 @@ cpuFeatures_t Sys_GetProcessorFeatures( void )
 #ifndef DEDICATED
 	if( SDL_HasRDTSC( ) )    features |= CF_RDTSC;
 	if( SDL_HasMMX( ) )      features |= CF_MMX;
+#ifndef USE_SDL2
 	if( SDL_HasMMXExt( ) )   features |= CF_MMX_EXT;
+#endif
 	if( SDL_Has3DNow( ) )    features |= CF_3DNOW;
+#ifndef USE_SDL2
 	if( SDL_Has3DNowExt( ) ) features |= CF_3DNOW_EXT;
+#endif
 	if( SDL_HasSSE( ) )      features |= CF_SSE;
 	if( SDL_HasSSE2( ) )     features |= CF_SSE2;
 	if( SDL_HasAltiVec( ) )  features |= CF_ALTIVEC;
@@ -671,19 +675,25 @@ int main( int argc, char **argv )
 #	endif
 
 	// Run time
+	SDL_version linkedVersion;
+#ifdef IOS
+	SDL_GetVersion( &linkedVersion );
+#else
 	const SDL_version *ver = SDL_Linked_Version( );
+	linkedVersion = *ver;
+#endif
 
 #define MINSDL_VERSION \
 	XSTRING(MINSDL_MAJOR) "." \
 	XSTRING(MINSDL_MINOR) "." \
 	XSTRING(MINSDL_PATCH)
 
-	if( SDL_VERSIONNUM( ver->major, ver->minor, ver->patch ) <
+	if( SDL_VERSIONNUM( linkedVersion.major, linkedVersion.minor, linkedVersion.patch ) <
 			SDL_VERSIONNUM( MINSDL_MAJOR, MINSDL_MINOR, MINSDL_PATCH ) )
 	{
 		Sys_Dialog( DT_ERROR, va( "SDL version " MINSDL_VERSION " or greater is required, "
 			"but only version %d.%d.%d was found. You may be able to obtain a more recent copy "
-			"from http://www.libsdl.org/.", ver->major, ver->minor, ver->patch ), "SDL Library Too Old" );
+			"from http://www.libsdl.org/.", linkedVersion.major, linkedVersion.minor, linkedVersion.patch ), "SDL Library Too Old" );
 
 		Sys_Exit( 1 );
 	}
@@ -749,6 +759,12 @@ int main( int argc, char **argv )
 	}
 #endif
 
+#ifdef IOS
+	Q_strcat( commandLine, sizeof( commandLine ),
+		"+set r_mode -1 +set r_fullscreen 1 +set in_touch 1 "
+		"+set vm_cgame 2 +set vm_game 2 +set vm_ui 2 " );
+#endif
+
 	Com_Init( commandLine );
 	NET_Init( );
 
@@ -775,4 +791,3 @@ int main( int argc, char **argv )
 
 	return 0;
 }
-

@@ -1,5 +1,30 @@
-build
+# Build output (make, ioq3 tools, iOS)
+####################
+build/
+*.o
+*.d
+*.arm64
+*.so
+*.dylib
+*.dll
+*.exe
+*.qvm
+*.jts
+*.app
+*.ipa
+*.xcarchive
+*.dSYM/
+
 Makefile.local
+
+# iOS port (SDL2 download / build cache from scripts/build-ios.sh)
+####################
+misc/ios/SDL2.framework/
+misc/ios/sdl2-build/
+misc/ios/AppIcon*.png
+
+# Editor / tags
+####################
 *.swp
 *tags
 

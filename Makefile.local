@@ -18,6 +18,20 @@
 -include Makefile.smokinguns
 #-include Makefile.SGMod
 
+ifeq ($(PLATFORM),ios)
+  FRAMEBUFFER_AND_GLSL_SUPPORT=0
+  BUILD_SERVER=0
+  BUILD_GAME_SO=0
+  BUILD_GAME_QVM=0
+  BUILD_RENDERER_OPENGL2=0
+  USE_RENDERER_DLOPEN=0
+  USE_OPENAL=0
+  USE_CURL=0
+  USE_MUMBLE=0
+  USE_VOIP=0
+  USE_FREETYPE=0
+endif
+
 # Moved some checks out of Makefile to here, so we keep more stuffs separated
 # from ioQuake3 upstream commits
 

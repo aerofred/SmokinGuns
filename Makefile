@@ -235,6 +235,7 @@ RGL1DIR=$(MOUNT_DIR)/renderergl1
 RGL2DIR=$(MOUNT_DIR)/renderergl2
 CMDIR=$(MOUNT_DIR)/qcommon
 SDLDIR=$(MOUNT_DIR)/sdl
+IOSDIR=$(MOUNT_DIR)/ios
 ASMDIR=$(MOUNT_DIR)/asm
 SYSDIR=$(MOUNT_DIR)/sys
 GDIR=$(MOUNT_DIR)/game
@@ -493,6 +494,55 @@ ifeq ($(PLATFORM),darwin)
   NOTSHLIBCFLAGS=-mdynamic-no-pic
 
 else # ifeq darwin
+
+#############################################################################
+# SETUP AND BUILD -- IOS
+#############################################################################
+
+ifeq ($(PLATFORM),ios)
+  BUILD_SERVER=0
+  BUILD_GAME_SO=0
+  BUILD_GAME_QVM=0
+  BUILD_RENDERER_OPENGL2=0
+  USE_RENDERER_DLOPEN=0
+  USE_OPENAL=0
+  USE_CURL=0
+  USE_MUMBLE=0
+  USE_VOIP=0
+  USE_FREETYPE=0
+  USE_LOCAL_HEADERS=1
+
+  IOS_SDK?=$(shell xcrun --sdk iphoneos --show-sdk-path)
+  IOS_SDL_ROOT?=misc/ios/sdl2-build/SDL2-2.30.5
+  IOS_SDL_LIB?=misc/ios/sdl2-build/libSDL2-ios.a
+
+  CC=xcrun --sdk iphoneos clang
+  RANLIB=xcrun --sdk iphoneos ranlib
+  HAVE_VM_COMPILED=false
+  FULLBINEXT=.arm64
+  BINEXT=
+
+  BASE_CFLAGS = -Wall -Wimplicit -Wstrict-prototypes -fno-strict-aliasing \
+    -fno-common -pipe -DIOS -DNO_VM_COMPILED -arch arm64 -isysroot $(IOS_SDK) \
+    -miphoneos-version-min=12.0 -I$(IOS_SDL_ROOT)/include
+  CLIENT_CFLAGS += -DUSE_SDL2
+  OPTIMIZEVM=
+  OPTIMIZE=-DNDEBUG -O2
+  LIBS=-lm
+  THREAD_LIBS=
+  CLIENT_LIBS=$(IOS_SDL_LIB) \
+    -framework UIKit -framework Foundation -framework CoreFoundation \
+    -framework CoreGraphics -framework QuartzCore -framework OpenGLES \
+    -framework AudioToolbox -framework CoreAudio -framework AVFoundation \
+    -framework GameController -framework CoreMotion -framework CoreHaptics \
+    -framework CoreBluetooth -framework Metal
+  RENDERER_LIBS=
+  SHLIBEXT=dylib
+  SHLIBCFLAGS=
+  SHLIBLDFLAGS=
+  DEFAULT_BASEDIR=.
+
+else # ifeq ios
 
 
 #############################################################################
@@ -901,6 +951,7 @@ else # ifeq sunos
 
 endif #Linux
 endif #darwin
+endif #ios
 endif #mingw32
 endif #FreeBSD
 endif #OpenBSD
@@ -1625,6 +1676,17 @@ Q3OBJ = \
   $(B)/client/con_log.o \
   $(B)/client/sys_main.o
 
+ifeq ($(PLATFORM),ios)
+  Q3OBJ := $(filter-out $(B)/client/sdl_input.o $(B)/client/sdl_snd.o $(B)/client/qal.o $(B)/client/snd_openal.o $(B)/client/cl_curl.o,$(Q3OBJ))
+  Q3OBJ += \
+    $(B)/client/sdl_input_ios.o \
+    $(B)/client/sdl_snd_ios.o \
+    $(B)/client/cl_touch.o \
+    $(B)/client/ios_layer.o \
+    $(B)/client/ios_loading.o \
+    $(B)/client/ios_touch_settings.o
+endif
+
 ifeq ($(PLATFORM),mingw32)
   Q3OBJ += \
     $(B)/client/con_passive.o
@@ -2091,6 +2153,13 @@ endif
 ifeq ($(PLATFORM),darwin)
   Q3OBJ += \
     $(B)/client/sys_osx.o
+endif
+
+ifeq ($(PLATFORM),ios)
+  Q3ROBJ := $(filter-out $(B)/renderergl1/sdl_glimp.o $(B)/renderergl1/sdl_gamma.o,$(Q3ROBJ))
+  Q3ROBJ += \
+    $(B)/renderergl1/sdl_glimp_ios.o \
+    $(B)/renderergl1/qgles.o
 endif
 
 ifeq ($(USE_MUMBLE),1)
@@ -2627,6 +2696,9 @@ $(B)/client/%.o: $(SYSDIR)/%.c
 	$(DO_CC)
 
 $(B)/client/%.o: $(SYSDIR)/%.m
+	$(DO_CC)
+
+$(B)/client/%.o: $(IOSDIR)/%.m
 	$(DO_CC)
 
 $(B)/client/%.o: $(SYSDIR)/%.rc

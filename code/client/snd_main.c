@@ -505,12 +505,14 @@ void S_Init( void )
 		Cmd_AddCommand( "s_stop", S_StopAllSounds );
 		Cmd_AddCommand( "s_info", S_SoundInfo );
 
+#ifndef IOS
 		cv = Cvar_Get( "s_useOpenAL", "1", CVAR_ARCHIVE );
 		if( cv->integer ) {
 			//OpenAL
 			started = S_AL_Init( &si );
 			Cvar_Set( "s_backend", "OpenAL" );
 		}
+#endif
 
 		if( !started ) {
 			started = S_Base_Init( &si );
@@ -554,4 +556,3 @@ void S_Shutdown( void )
 
 	S_CodecShutdown( );
 }
-

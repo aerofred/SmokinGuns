@@ -62,7 +62,13 @@ char *Sys_DefaultHomePath(void)
 		if( ( p = getenv( "HOME" ) ) != NULL )
 		{
 			Com_sprintf(homePath, sizeof(homePath), "%s%c", p, PATH_SEP);
-#ifdef MACOS_X
+#ifdef IOS
+			Q_strcat(homePath, sizeof(homePath), "Documents/");
+			if(com_homepath->string[0])
+				Q_strcat(homePath, sizeof(homePath), com_homepath->string);
+			else
+				Q_strcat(homePath, sizeof(homePath), HOMEPATH_NAME_MACOSX);
+#elif defined(MACOS_X)
 			Q_strcat(homePath, sizeof(homePath),
 				"Library/Application Support/");
 
