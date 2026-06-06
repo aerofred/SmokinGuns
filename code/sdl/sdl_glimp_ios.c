@@ -19,7 +19,7 @@ Based on Quake3-iOS / ioquake3 GLES path
 void GLimp_AssignES1DesktopStubs( void );
 #endif
 
-static SDL_Window *sdlWindow = NULL;
+SDL_Window *SDL_window = NULL;
 static SDL_GLContext glContext = NULL;
 
 cvar_t *r_allowSoftwareGL;
@@ -206,51 +206,69 @@ static qboolean GLimp_GetProcAddresses( void ) {
 static rserr_t GLimp_SetMode( int mode, qboolean fullscreen, qboolean noborder )
 {
 	int width, height;
+	int modeWidth, modeHeight;
+	int windowWidth, windowHeight;
 	Uint32 flags;
 	const char *glstring;
+	SDL_DisplayMode desktopMode;
 
 	(void)noborder;
 	ri.Printf( PRINT_ALL, "Initializing OpenGL ES 1.1 display (SDL2)\n" );
 
+	modeWidth = 0;
+	modeHeight = 0;
+
 	if ( mode == -2 )
 	{
-		if ( sdlWindow )
+		Sys_SetViewportMode( 0, 0 );
+
+		if ( SDL_window )
 		{
-			SDL_GL_GetDrawableSize( sdlWindow, &width, &height );
+			SDL_GL_GetDrawableSize( SDL_window, &width, &height );
+		}
+		else if ( SDL_GetDesktopDisplayMode( 0, &desktopMode ) == 0 )
+		{
+			width = desktopMode.w;
+			height = desktopMode.h;
 		}
 		else
 		{
-			SDL_DisplayMode desktopMode;
-
-			if ( SDL_GetDesktopDisplayMode( 0, &desktopMode ) == 0 )
-			{
-				width = desktopMode.w;
-				height = desktopMode.h;
-				displayAspect = (float)width / (float)height;
-			}
-			else
-			{
-				width = 1024;
-				height = 768;
-				displayAspect = 4.0f / 3.0f;
-			}
+			width = 1024;
+			height = 768;
 		}
+		displayAspect = (float)width / (float)height;
 	}
-	else if ( !R_GetModeInfo( &width, &height, &displayAspect, mode ) )
+	else if ( R_GetModeInfo( &modeWidth, &modeHeight, &displayAspect, mode ) )
 	{
+		Sys_SetViewportMode( modeWidth, modeHeight );
+		width = modeWidth;
+		height = modeHeight;
+	}
+	else
+	{
+		Sys_SetViewportMode( 640, 480 );
 		width = 1024;
 		height = 768;
 		displayAspect = 4.0f / 3.0f;
 	}
 
-	glConfig.vidWidth = width;
-	glConfig.vidHeight = height;
-	glConfig.windowAspect = (float)width / (float)height;
-	glConfig.isFullscreen = fullscreen ? qtrue : qfalse;
+	/* UIKit plein écran : surface native, ratio selon r_mode */
+	fullscreen = qtrue;
+	glConfig.isFullscreen = qtrue;
 
-	flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI;
-	if ( fullscreen )
-		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+	if ( SDL_GetDesktopDisplayMode( 0, &desktopMode ) == 0 )
+	{
+		windowWidth = desktopMode.w;
+		windowHeight = desktopMode.h;
+	}
+	else
+	{
+		windowWidth = width;
+		windowHeight = height;
+	}
+
+	flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI |
+		SDL_WINDOW_FULLSCREEN_DESKTOP;
 
 	if ( glContext )
 	{
@@ -259,9 +277,13 @@ static rserr_t GLimp_SetMode( int mode, qboolean fullscreen, qboolean noborder )
 		glContext = NULL;
 	}
 
-	if ( sdlWindow )
+	if ( SDL_window )
 	{
-		SDL_SetWindowSize( sdlWindow, width, height );
+		SDL_SetWindowFullscreen( SDL_window, SDL_WINDOW_FULLSCREEN_DESKTOP );
+		SDL_GL_GetDrawableSize( SDL_window, &width, &height );
+		glConfig.vidWidth = width;
+		glConfig.vidHeight = height;
+		glConfig.windowAspect = (float)width / (float)height;
 	}
 	else
 	{
@@ -276,15 +298,15 @@ static rserr_t GLimp_SetMode( int mode, qboolean fullscreen, qboolean noborder )
 		SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, 8 );
 		SDL_GL_SetAttribute( SDL_GL_ALPHA_SIZE, 8 );
 
-		sdlWindow = SDL_CreateWindow( CLIENT_WINDOW_TITLE, SDL_WINDOWPOS_CENTERED,
-			SDL_WINDOWPOS_CENTERED, width, height, flags );
-		if ( !sdlWindow )
+		SDL_window = SDL_CreateWindow( CLIENT_WINDOW_TITLE, SDL_WINDOWPOS_CENTERED,
+			SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, flags );
+		if ( !SDL_window )
 		{
 			ri.Printf( PRINT_ALL, "SDL_CreateWindow failed: %s\n", SDL_GetError() );
 			return RSERR_INVALID_MODE;
 		}
 
-		glContext = SDL_GL_CreateContext( sdlWindow );
+		glContext = SDL_GL_CreateContext( SDL_window );
 		if ( !glContext )
 		{
 			ri.Printf( PRINT_ALL, "SDL_GL_CreateContext failed: %s\n", SDL_GetError() );
@@ -293,13 +315,13 @@ static rserr_t GLimp_SetMode( int mode, qboolean fullscreen, qboolean noborder )
 
 		SDL_GL_SetSwapInterval( 1 );
 
-		SDL_GL_GetDrawableSize( sdlWindow, &width, &height );
+		SDL_GL_GetDrawableSize( SDL_window, &width, &height );
 		glConfig.vidWidth = width;
 		glConfig.vidHeight = height;
 		glConfig.windowAspect = (float)width / (float)height;
 	}
 
-	SDL_GL_MakeCurrent( sdlWindow, glContext );
+	SDL_GL_MakeCurrent( SDL_window, glContext );
 
 	if ( !GLimp_GetProcAddresses() )
 		ri.Error( ERR_FATAL, "GLimp_GetProcAddresses failed" );
@@ -313,6 +335,7 @@ static rserr_t GLimp_SetMode( int mode, qboolean fullscreen, qboolean noborder )
 	ri.Printf( PRINT_ALL, "GL_VERSION: %s\n", (char *)qglGetString( GL_VERSION ) );
 
 	Sys_UpdateViewport4x3( glConfig.vidWidth, glConfig.vidHeight );
+	IOS_Layer_SyncScreen();
 
 	return RSERR_OK;
 }
@@ -411,7 +434,10 @@ void GLimp_Init( void )
 
 	glConfig.driverType = GLDRV_ICD;
 	glConfig.hardwareType = GLHW_GENERIC;
-	glConfig.deviceSupportsGamma = qfalse;
+
+	/* Comme Quake3-iOS : détecter le gamma matériel via SDL */
+	glConfig.deviceSupportsGamma = !Cvar_VariableIntegerValue( "r_ignorehwgamma" ) &&
+		SDL_window && SDL_SetWindowBrightness( SDL_window, 1.0f ) >= 0;
 
 	Q_strncpyz( glConfig.vendor_string, (char *)qglGetString( GL_VENDOR ),
 		sizeof( glConfig.vendor_string ) );
@@ -426,13 +452,14 @@ void GLimp_Init( void )
 	GLimp_AssignES1DesktopStubs();
 #endif
 
-	if ( Cvar_VariableValue( "r_gamma" ) == 1.0f )
-		Cvar_Set( "r_gamma", "1.35" );
-	if ( Cvar_VariableValue( "r_intensity" ) == 1.0f )
-		Cvar_Set( "r_intensity", "1.35" );
+	/* Ancien contournement iOS (1.35) : revenir aux valeurs moteur par défaut */
+	if ( Cvar_VariableValue( "r_gamma" ) == 1.35f )
+		Cvar_Set( "r_gamma", "1" );
+	if ( Cvar_VariableValue( "r_intensity" ) == 1.35f )
+		Cvar_Set( "r_intensity", "1" );
 
 	ri.IN_Init();
-	IOS_Layer_Init( sdlWindow );
+	IOS_Layer_Init( SDL_window );
 }
 
 void GLimp_GetWindowSize( int *width, int *height )
@@ -444,18 +471,13 @@ void GLimp_GetWindowSize( int *width, int *height )
 	if ( height )
 		*height = 0;
 
-	if ( sdlWindow ) {
-		/* UIKit overlay uses point coordinates; match SDL window size, not drawable pixels */
-		SDL_GetWindowSize( sdlWindow, &w, &h );
-		if ( w < 1 || h < 1 ) {
-			SDL_GL_GetDrawableSize( sdlWindow, &w, &h );
-		}
+	IOS_Layer_GetLayoutSize( &w, &h );
+
+	if ( ( w < 1 || h < 1 ) && SDL_window ) {
+		/* UIKit overlay : points, pas les pixels drawable du viewport GL */
+		SDL_GetWindowSize( SDL_window, &w, &h );
 	}
-	if ( w < 1 || h < 1 )
-	{
-		w = glConfig.vidWidth;
-		h = glConfig.vidHeight;
-	}
+
 	if ( width )
 		*width = w;
 	if ( height )
@@ -471,20 +493,20 @@ void GLimp_Shutdown( void )
 		SDL_GL_DeleteContext( glContext );
 		glContext = NULL;
 	}
-	if ( sdlWindow )
+	if ( SDL_window )
 	{
-		SDL_DestroyWindow( sdlWindow );
-		sdlWindow = NULL;
+		SDL_DestroyWindow( SDL_window );
+		SDL_window = NULL;
 	}
 }
 
 void GLimp_EndFrame( void )
 {
-	if ( sdlWindow && glContext )
+	if ( SDL_window && glContext )
 	{
 		int w, h;
 
-		SDL_GL_GetDrawableSize( sdlWindow, &w, &h );
+		SDL_GL_GetDrawableSize( SDL_window, &w, &h );
 		if ( w > 0 && h > 0 )
 		{
 			glConfig.vidWidth = w;
@@ -493,8 +515,9 @@ void GLimp_EndFrame( void )
 		}
 
 		Sys_UpdateViewport4x3( glConfig.vidWidth, glConfig.vidHeight );
+		IOS_Layer_SyncScreen();
 
-		SDL_GL_SwapWindow( sdlWindow );
+		SDL_GL_SwapWindow( SDL_window );
 	}
 }
 
@@ -511,22 +534,15 @@ void GLimp_WakeBackEnd( void *data ) { (void)data; }
 void GLimp_WakeBackEndPost( void ) {}
 void GLimp_DeactivateContext( void )
 {
-	if ( sdlWindow && glContext )
-		SDL_GL_MakeCurrent( sdlWindow, NULL );
+	if ( SDL_window && glContext )
+		SDL_GL_MakeCurrent( SDL_window, NULL );
 }
 void GLimp_ActivateContext( void )
 {
-	if ( sdlWindow && glContext )
-		SDL_GL_MakeCurrent( sdlWindow, glContext );
+	if ( SDL_window && glContext )
+		SDL_GL_MakeCurrent( SDL_window, glContext );
 }
 void GLimp_DestroyContext( void )
 {
 	GLimp_Shutdown();
-}
-
-void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned char blue[256] )
-{
-	(void)red;
-	(void)green;
-	(void)blue;
 }

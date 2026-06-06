@@ -114,8 +114,7 @@ static const char *glesFragSrc =
 	"    } else if (uTexEnvMode == 0x0104) {\n"
 	"      c *= min(t0 + t1, vec4(1.0));\n"
 	"    } else {\n"
-	"      vec4 lm = max(t1 * 2.4 + 0.18, vec4(0.22));\n"
-	"      c *= t0 * lm;\n"
+	"      c *= t0 * t1;\n"
 	"    }\n"
 	"  } else {\n"
 	"    c *= t0;\n"
@@ -338,7 +337,6 @@ static void Gles_BindDrawTextures( qboolean useTex1 )
 static void Gles_SetTextureUniforms( GLint useTex1Loc )
 {
 	qboolean useTex1;
-	float gamma, intensity, bright;
 
 	useTex1 = ( glesClient.texcoord2 != NULL && glesClient.tex2Enabled ) ? qtrue : qfalse;
 	if ( !useTex1 && glesClient.texcoord2 != NULL && glesTexUnitEnabled[1] )
@@ -349,14 +347,21 @@ static void Gles_SetTextureUniforms( GLint useTex1Loc )
 	glUniform1i( useTex1Loc, useTex1 ? 1 : 0 );
 	glUniform1i( glesLocTexEnv, glesTexEnvMode );
 
-	gamma = Cvar_VariableValue( "r_gamma" );
-	intensity = Cvar_VariableValue( "r_intensity" );
-	bright = gamma * intensity;
-	if ( bright < 0.35f )
-		bright = 0.35f;
-	if ( bright > 6.0f )
-		bright = 6.0f;
-	glUniform1f( glesLocBright, bright );
+	/* Gamma déjà appliquée aux textures (pas de gamma matérielle sur iOS) */
+	if ( glConfig.deviceSupportsGamma ) {
+		float gamma, intensity, bright;
+
+		gamma = Cvar_VariableValue( "r_gamma" );
+		intensity = Cvar_VariableValue( "r_intensity" );
+		bright = gamma * intensity;
+		if ( bright < 0.35f )
+			bright = 0.35f;
+		if ( bright > 6.0f )
+			bright = 6.0f;
+		glUniform1f( glesLocBright, bright );
+	} else {
+		glUniform1f( glesLocBright, 1.0f );
+	}
 
 	Gles_BindDrawTextures( useTex1 );
 }

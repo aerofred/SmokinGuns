@@ -10,6 +10,7 @@ Réglages iOS (UIKit) — tactile + affichage via cl_touch.c
 
 typedef NS_ENUM( NSInteger, SGTouchRow ) {
 	SGTouchRowEnabled = 0,
+	SGTouchRowMoveSens,
 	SGTouchRowLookSens,
 	SGTouchRowUISens,
 	SGTouchRowDeadzone,
@@ -24,7 +25,12 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 	SGTouchRowLookY,
 	SGTouchRowRightX,
 	SGTouchRowFireY,
-	SGTouchRowJumpY,
+	SGTouchRowWeaponsX,
+	SGTouchRowWeaponsY,
+	SGTouchRowActionsX,
+	SGTouchRowActionsY,
+	SGTouchRowEscX,
+	SGTouchRowEscY,
 	SGTouchRowCount
 };
 
@@ -85,6 +91,7 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 	switch ( row )
 	{
 	case SGTouchRowEnabled: return @"Activer";
+	case SGTouchRowMoveSens: return @"Sensibilité déplacement";
 	case SGTouchRowLookSens: return @"Sensibilité visée";
 	case SGTouchRowUISens: return @"Sensibilité menus";
 	case SGTouchRowDeadzone: return @"Zone morte";
@@ -97,9 +104,14 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 	case SGTouchRowMoveY: return @"Déplacement Y";
 	case SGTouchRowLookX: return @"Visée X";
 	case SGTouchRowLookY: return @"Visée Y";
-	case SGTouchRowRightX: return @"Colonne droite X";
-	case SGTouchRowFireY: return @"Tir Y";
-	case SGTouchRowJumpY: return @"Saut Y";
+	case SGTouchRowRightX: return @"Grille droite X";
+	case SGTouchRowFireY: return @"Grille droite Y";
+	case SGTouchRowWeaponsX: return @"Armes 1–4 X";
+	case SGTouchRowWeaponsY: return @"Armes 1–4 Y";
+	case SGTouchRowActionsX: return @"Actions L/R/E/F/B X";
+	case SGTouchRowActionsY: return @"Actions L/R/E/F/B Y";
+	case SGTouchRowEscX: return @"ESC X";
+	case SGTouchRowEscY: return @"ESC Y";
 	default: return @"";
 	}
 }
@@ -108,6 +120,7 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 {
 	switch ( row )
 	{
+	case SGTouchRowMoveSens: *mn = 0.25f; *mx = 4.0f; break;
 	case SGTouchRowLookSens: *mn = 0.5f; *mx = 6.0f; break;
 	case SGTouchRowUISens: *mn = 0.5f; *mx = 8.0f; break;
 	case SGTouchRowDeadzone: *mn = 0.0f; *mx = 0.5f; break;
@@ -116,7 +129,20 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 	case SGTouchRowOverbright: *mn = 0.0f; *mx = 2.0f; break;
 	case SGTouchRowStickSize: *mn = 0.08f; *mx = 0.22f; break;
 	case SGTouchRowBtnSize: *mn = 0.06f; *mx = 0.18f; break;
-	default: *mn = 0.05f; *mx = 0.95f; break;
+	case SGTouchRowMoveX:
+	case SGTouchRowMoveY:
+	case SGTouchRowLookX:
+	case SGTouchRowLookY:
+	case SGTouchRowRightX:
+	case SGTouchRowFireY:
+	case SGTouchRowWeaponsX:
+	case SGTouchRowWeaponsY:
+	case SGTouchRowActionsX:
+	case SGTouchRowActionsY:
+	case SGTouchRowEscX:
+	case SGTouchRowEscY:
+		*mn = 0.0f; *mx = 1.0f; break;
+	default: *mn = 0.0f; *mx = 1.0f; break;
 	}
 }
 
@@ -124,6 +150,7 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 {
 	switch ( row )
 	{
+	case SGTouchRowMoveSens: return &_cfg.moveSensitivity;
 	case SGTouchRowLookSens: return &_cfg.lookSensitivity;
 	case SGTouchRowUISens: return &_cfg.uiSensitivity;
 	case SGTouchRowDeadzone: return &_cfg.deadzone;
@@ -138,7 +165,12 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 	case SGTouchRowLookY: return &_cfg.lookY;
 	case SGTouchRowRightX: return &_cfg.rightX;
 	case SGTouchRowFireY: return &_cfg.fireY;
-	case SGTouchRowJumpY: return &_cfg.jumpY;
+	case SGTouchRowWeaponsX: return &_cfg.weaponsX;
+	case SGTouchRowWeaponsY: return &_cfg.weaponsY;
+	case SGTouchRowActionsX: return &_cfg.actionsX;
+	case SGTouchRowActionsY: return &_cfg.actionsY;
+	case SGTouchRowEscX: return &_cfg.escX;
+	case SGTouchRowEscY: return &_cfg.escY;
 	default: return NULL;
 	}
 }
@@ -146,7 +178,7 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
 {
 	(void)tableView;
-	return 4;
+	return 6;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section
@@ -157,7 +189,9 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 	case 0: return @"Contrôles";
 	case 1: return @"Affichage";
 	case 2: return @"Tailles";
-	default: return @"Positions (0–1)";
+	case 3: return @"Positions sticks";
+	case 4: return @"Grille droite (AIM/RUN/JUMP/FIRE)";
+	default: return @"Autres boutons";
 	}
 }
 
@@ -165,7 +199,9 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 {
 	(void)tableView;
 	if ( section == 1 )
-		return @"Augmentez gamma et intensité si le monde paraît trop sombre ou noir.";
+		return @"Gamma et intensité : 1.0 = réglage moteur par défaut.";
+	if ( section >= 3 )
+		return @"0 = bord gauche ou haut de l'écran physique, 1 = bord droit ou bas (indépendant du viewport de jeu).";
 	return nil;
 }
 
@@ -174,10 +210,12 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 	(void)tableView;
 	switch ( section )
 	{
-	case 0: return 4;
+	case 0: return 5;
 	case 1: return 3;
 	case 2: return 2;
-	default: return 7;
+	case 3: return 4;
+	case 4: return 2;
+	default: return 6;
 	}
 }
 
@@ -189,7 +227,11 @@ typedef NS_ENUM( NSInteger, SGTouchRow ) {
 		return (SGTouchRow)( SGTouchRowGamma + ip.row );
 	if ( ip.section == 2 )
 		return (SGTouchRow)( SGTouchRowStickSize + ip.row );
-	return (SGTouchRow)( SGTouchRowMoveX + ip.row );
+	if ( ip.section == 3 )
+		return (SGTouchRow)( SGTouchRowMoveX + ip.row );
+	if ( ip.section == 4 )
+		return (SGTouchRow)( SGTouchRowRightX + ip.row );
+	return (SGTouchRow)( SGTouchRowWeaponsX + ip.row );
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)ip

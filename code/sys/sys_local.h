@@ -77,7 +77,9 @@ void Sys_Daemonize( void );
 #endif
 
 #ifdef IOS
+void Sys_SetViewportMode( int modeWidth, int modeHeight );
 void Sys_UpdateViewport4x3( int vidWidth, int vidHeight );
 void Sys_GetViewport4x3( int *x, int *y, int *width, int *height );
+void Sys_GetViewportPoints( int screenW, int screenH, int *x, int *y, int *width, int *height );
 void Sys_GetViewport640Mapping( float *xscale, float *yscale, float *xbias, float *ybias );
 #endif

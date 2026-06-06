@@ -15,6 +15,12 @@ void IOS_Layer_Init( struct SDL_Window *window );
 void IOS_Layer_Shutdown( void );
 void IOS_Layer_Tick( void );
 
+/* Aligne l'overlay UIKit sur la fenêtre SDL plein écran */
+void IOS_Layer_SyncScreen( void );
+
+/* Taille de l'overlay en points UIKit (même repère que layoutFromOverlay) */
+void IOS_Layer_GetLayoutSize( int *width, int *height );
+
 /* Affiche la fenêtre overlay au-dessus de SDL (après l’écran de chargement) */
 void IOS_Layer_AttachToWindow( void );
 

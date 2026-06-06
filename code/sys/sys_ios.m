@@ -87,12 +87,23 @@ static float iosViewportXScale = 1.0f;
 static float iosViewportYScale = 1.0f;
 static float iosViewportXBias = 0.0f;
 static float iosViewportYBias = 0.0f;
+static int iosModeWidth = 0;
+static int iosModeHeight = 0;
+static int iosVidWidth = 0;
+static int iosVidHeight = 0;
+
+void Sys_SetViewportMode( int modeWidth, int modeHeight ) {
+	iosModeWidth = modeWidth;
+	iosModeHeight = modeHeight;
+}
 
 void Sys_UpdateViewport4x3( int vidWidth, int vidHeight ) {
 	int availWidth;
 	int availHeight;
 	int viewWidth;
 	int viewHeight;
+	int refW;
+	int refH;
 
 	if ( vidWidth <= 0 || vidHeight <= 0 ) {
 		return;
@@ -101,12 +112,19 @@ void Sys_UpdateViewport4x3( int vidWidth, int vidHeight ) {
 	availWidth = vidWidth;
 	availHeight = vidHeight;
 
-	if ( availWidth * 3 > availHeight * 4 ) {
-		viewHeight = availHeight;
-		viewWidth = ( availHeight * 4 ) / 3;
-	} else {
+	refW = iosModeWidth;
+	refH = iosModeHeight;
+
+	/* r_mode -2 (natif) : occuper tout l'écran */
+	if ( refW <= 0 || refH <= 0 ) {
 		viewWidth = availWidth;
-		viewHeight = ( availWidth * 3 ) / 4;
+		viewHeight = availHeight;
+		refW = vidWidth;
+		refH = vidHeight;
+	} else {
+		/* Pour les modes fixes, remplir toute la hauteur et garder le ratio. */
+		viewHeight = availHeight;
+		viewWidth = ( availHeight * refW ) / refH;
 	}
 
 	viewWidth &= ~1;
@@ -117,10 +135,12 @@ void Sys_UpdateViewport4x3( int vidWidth, int vidHeight ) {
 	iosViewportX = ( vidWidth - viewWidth ) / 2;
 	iosViewportY = ( vidHeight - viewHeight ) / 2;
 
-	iosViewportXScale = (float)viewWidth / 640.0f;
-	iosViewportYScale = (float)viewHeight / 480.0f;
+	iosViewportXScale = (float)viewWidth / (float)refW;
+	iosViewportYScale = (float)viewHeight / (float)refH;
 	iosViewportXBias = (float)iosViewportX;
 	iosViewportYBias = (float)iosViewportY;
+	iosVidWidth = vidWidth;
+	iosVidHeight = vidHeight;
 }
 
 void Sys_GetViewport4x3( int *x, int *y, int *width, int *height ) {
@@ -150,5 +170,48 @@ void Sys_GetViewport640Mapping( float *xscale, float *yscale, float *xbias, floa
 	}
 	if ( ybias ) {
 		*ybias = iosViewportYBias;
+	}
+}
+
+void Sys_GetViewportPoints( int screenW, int screenH, int *x, int *y, int *width, int *height ) {
+	float sx;
+	float sy;
+	int vx;
+	int vy;
+	int vw;
+	int vh;
+
+	Sys_GetViewport4x3( &vx, &vy, &vw, &vh );
+
+	if ( iosVidWidth <= 0 || iosVidHeight <= 0 || screenW <= 0 || screenH <= 0 ) {
+		if ( x ) {
+			*x = 0;
+		}
+		if ( y ) {
+			*y = 0;
+		}
+		if ( width ) {
+			*width = screenW;
+		}
+		if ( height ) {
+			*height = screenH;
+		}
+		return;
+	}
+
+	sx = (float)screenW / (float)iosVidWidth;
+	sy = (float)screenH / (float)iosVidHeight;
+
+	if ( x ) {
+		*x = (int)( vx * sx + 0.5f );
+	}
+	if ( y ) {
+		*y = (int)( vy * sy + 0.5f );
+	}
+	if ( width ) {
+		*width = (int)( vw * sx + 0.5f );
+	}
+	if ( height ) {
+		*height = (int)( vh * sy + 0.5f );
 	}
 }

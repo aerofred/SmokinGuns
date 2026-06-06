@@ -152,6 +152,7 @@ static void IN_ProcessKey( SDL_Keysym *keysym, qboolean down )
 	case SDLK_DOWN: key = K_DOWNARROW; break;
 	case SDLK_LEFT: key = K_LEFTARROW; break;
 	case SDLK_RIGHT: key = K_RIGHTARROW; break;
+	case SDLK_BACKSPACE: key = K_BACKSPACE; break;
 	default:
 		if ( keysym->sym >= SDLK_a && keysym->sym <= SDLK_z )
 			key = 'a' + ( keysym->sym - SDLK_a );
@@ -202,6 +203,9 @@ void IN_Frame( void )
 	IN_TouchFrame();
 	IOS_Layer_Tick();
 
+	if ( !( Key_GetCatcher() & ( KEYCATCH_CONSOLE | KEYCATCH_MESSAGE ) ) )
+		SDL_StopTextInput();
+
 	while ( SDL_PollEvent( &e ) )
 	{
 		switch ( e.type )
@@ -215,6 +219,19 @@ void IN_Frame( void )
 		case SDL_KEYUP:
 			IN_ProcessKey( &e.key.keysym, qfalse );
 			break;
+		case SDL_TEXTINPUT:
+		{
+			char *c = e.text.text;
+
+			while ( c && *c )
+			{
+				unsigned char ch = (unsigned char)*c++;
+
+				if ( ch >= 32 && ch < 127 )
+					Com_QueueEvent( 0, SE_CHAR, (int)ch, 0, 0, NULL );
+			}
+			break;
+		}
 		case SDL_MOUSEMOTION:
 			if ( e.motion.which == SDL_TOUCH_MOUSEID ||
 				Key_GetCatcher() & KEYCATCH_UI ||

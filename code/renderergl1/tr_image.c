@@ -1472,23 +1472,14 @@ void R_SetColorMappings( void ) {
 	// setup the overbright lighting
 	tr.overbrightBits = r_overBrightBits->integer;
 	if ( !glConfig.deviceSupportsGamma ) {
-#if defined( IOS ) || defined( __IPHONEOS__ )
-		/* iOS : gamma logicielle, conserver 1 bit overbright pour les lightmaps */
-		if ( tr.overbrightBits > 1 ) {
-			tr.overbrightBits = 1;
-		}
-#else
 		tr.overbrightBits = 0;		// need hardware gamma for overbright
-#endif
 	}
 
 	// never overbright in windowed mode
-#if !defined( IOS ) && !defined( __IPHONEOS__ )
 	if ( !glConfig.isFullscreen ) 
 	{
 		tr.overbrightBits = 0;
 	}
-#endif
 
 	// allow 2 overbright bits in 24 bit, but only 1 in 16 bit
 	if ( glConfig.colorBits > 16 ) {

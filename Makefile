@@ -2178,7 +2178,7 @@ ifeq ($(PLATFORM),ios)
     $(B)/client/ios_loading.o \
     $(B)/client/ios_touch_settings.o \
     $(B)/client/sys_ios.o
-  Q3ROBJ := $(filter-out $(B)/renderergl1/sdl_glimp.o $(B)/renderergl1/sdl_gamma.o,$(Q3ROBJ))
+  Q3ROBJ := $(filter-out $(B)/renderergl1/sdl_glimp.o,$(Q3ROBJ))
   Q3ROBJ += \
     $(B)/renderergl1/sdl_glimp_ios.o \
     $(B)/renderergl1/gles_es1_stubs.o
