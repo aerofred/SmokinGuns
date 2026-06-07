@@ -24,6 +24,9 @@ static float touchScale = 1.0f;
 static qboolean touchFireDown;
 static qboolean touchJumpDown;
 static qboolean touchUseDown;
+static qboolean touchUIMouseDown;
+static float touchUILastPx = -1.0f;
+static float touchUILastPy = -1.0f;
 
 static cvar_t *in_touch;
 static cvar_t *in_touchMoveSensitivity;
@@ -173,7 +176,7 @@ void IN_TouchInit( void )
 	in_touch = Cvar_Get( "in_touch", "1", CVAR_ARCHIVE );
 	in_touchMoveSensitivity = Cvar_Get( "in_touchMoveSensitivity", "1.0", CVAR_ARCHIVE );
 	in_touchSensitivity = Cvar_Get( "in_touchSensitivity", "2.2", CVAR_ARCHIVE );
-	in_touchUISensitivity = Cvar_Get( "in_touchUISensitivity", "1.0", CVAR_ARCHIVE );
+	in_touchUISensitivity = Cvar_Get( "in_touchUISensitivity", "3.5", CVAR_ARCHIVE );
 	in_touchDeadzone = Cvar_Get( "in_touchDeadzone", "0.035", CVAR_ARCHIVE );
 	in_touchStickSize = Cvar_Get( "in_touchStickSize", "0.16", CVAR_ARCHIVE );
 	in_touchBtnSize = Cvar_Get( "in_touchBtnSize", "0.09", CVAR_ARCHIVE );
@@ -216,7 +219,66 @@ void IN_TouchSyncLayout( int width, int height, float scale )
 
 qboolean IN_TouchInUIMode( void )
 {
-	return touchMode == TOUCH_MODE_CURSOR || Key_GetCatcher() != 0;
+	if( Key_GetCatcher() & KEYCATCH_UI )
+		return qtrue;
+	if( clc.state == CA_DISCONNECTED )
+		return qtrue;
+	return qfalse;
+}
+
+static void IN_TouchUIMouse( float x, float y, qboolean down, qboolean move )
+{
+	float sens;
+	float scaleX, scaleY;
+	float dpx, dpy;
+	int dx, dy;
+
+	scaleX = 640.0f / (float)( touchWidth > 0 ? touchWidth : 1 );
+	scaleY = 480.0f / (float)( touchHeight > 0 ? touchHeight : 1 );
+	sens = in_touchUISensitivity ? in_touchUISensitivity->value : 3.5f;
+	if( sens < 0.25f )
+		sens = 0.25f;
+
+	if( !down )
+	{
+		if( touchUIMouseDown )
+		{
+			touchUIMouseDown = qfalse;
+			Com_QueueEvent( 0, SE_KEY, K_MOUSE1, qfalse, 0, NULL );
+		}
+		touchUILastPx = -1.0f;
+		touchUILastPy = -1.0f;
+		return;
+	}
+
+	if( touchUILastPx < 0.0f )
+	{
+		touchUILastPx = x;
+		touchUILastPy = y;
+		if( !touchUIMouseDown )
+		{
+			touchUIMouseDown = qtrue;
+			Com_QueueEvent( 0, SE_KEY, K_MOUSE1, qtrue, 0, NULL );
+		}
+		if( !move )
+			return;
+	}
+
+	if( !move )
+		return;
+
+	dpx = ( x - touchUILastPx ) * sens;
+	dpy = ( y - touchUILastPy ) * sens;
+	touchUILastPx = x;
+	touchUILastPy = y;
+
+	dx = (int)( dpx * scaleX );
+	dy = (int)( dpy * scaleY );
+
+	if( dx == 0 && dy == 0 )
+		return;
+
+	Com_QueueEvent( 0, SE_MOUSE, dx, dy, 0, NULL );
 }
 
 qboolean IN_TouchConsoleActive( void )
@@ -249,6 +311,12 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 	if( !in_touch || !in_touch->integer )
 		return;
 
+	if( IN_TouchInUIMode() )
+	{
+		IN_TouchUIMouse( x, y, down, motion );
+		return;
+	}
+
 	if( down )
 	{
 		finger = Touch_FindFinger( fingerId );
@@ -259,7 +327,7 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 				return;
 			finger->startX = x;
 			finger->startY = y;
-			finger->zone = IN_TouchInUIMode() ? TOUCH_ZONE_NONE : Touch_Classify( x, y );
+			finger->zone = Touch_Classify( x, y );
 
 			if( finger->zone == TOUCH_ZONE_FIRE )
 				Touch_SetHeld( &touchFireDown, K_MOUSE1, qtrue );
@@ -267,18 +335,12 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 				Cbuf_AddText( "togglemenu\n" );
 			else if( finger->zone == TOUCH_ZONE_WEAPONS )
 				touchMode = TOUCH_MODE_RADIAL;
-			else if( finger->zone == TOUCH_ZONE_NONE && IN_TouchInUIMode() )
-				Com_QueueEvent( 0, SE_KEY, K_MOUSE1, qtrue, 0, NULL );
 		}
 
 		if( !finger )
 			return;
 
-		if( IN_TouchInUIMode() && finger->zone == TOUCH_ZONE_NONE )
-		{
-			Com_QueueEvent( 0, SE_MOUSE, (int)( x * in_touchUISensitivity->value ), (int)( y * in_touchUISensitivity->value ), 0, NULL );
-		}
-		else if( motion && finger->zone == TOUCH_ZONE_LOOK )
+		if( motion && finger->zone == TOUCH_ZONE_LOOK )
 		{
 			float dx = ( x - finger->x ) * in_touchSensitivity->value;
 			float dy = ( y - finger->y ) * in_touchSensitivity->value;
@@ -306,8 +368,6 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 
 		if( finger->zone == TOUCH_ZONE_WEAPONS )
 			Touch_CommandRadial( x, y );
-		if( finger->zone == TOUCH_ZONE_NONE && IN_TouchInUIMode() )
-			Com_QueueEvent( 0, SE_KEY, K_MOUSE1, qfalse, 0, NULL );
 
 		Touch_StopZone( finger->zone );
 		if( finger->zone == TOUCH_ZONE_MOVE )

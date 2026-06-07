@@ -1,322 +1,328 @@
-/*
-===========================================================================
-OpenGL ES 1.x compatibility declarations for the iOS renderer path.
-===========================================================================
-*/
-
 #ifndef __QGL_ES1_H__
 #define __QGL_ES1_H__
 
-#ifdef USE_LOCAL_HEADERS
-#	include "SDL_opengles.h"
-#else
-#	include <OpenGLES/ES1/gl.h>
+#include <SDL_opengles.h>
+#include "qgles.h"
+
+extern void (APIENTRYP qglActiveTextureARB) (GLenum texture);
+extern void (APIENTRYP qglClientActiveTextureARB) (GLenum texture);
+extern void (APIENTRYP qglMultiTexCoord2fARB) (GLenum target, GLfloat s, GLfloat t);
+
+extern void (APIENTRYP qglLockArraysEXT) (GLint first, GLsizei count);
+extern void (APIENTRYP qglUnlockArraysEXT) (void);
+
+//===========================================================================
+
+// GL function loader, based on https://gist.github.com/rygorous/16796a0c876cf8a5f542caddb55bce8a
+// get missing functions from code/SDL2/include/SDL_opengl.h
+
+// OpenGL 1.0/1.1, OpenGL ES 1.0, and OpenGL 3.2 core profile
+#define QGL_1_1_PROCS \
+	GLE(void, BindTexture, GLenum target, GLuint texture) \
+	GLE(void, BlendFunc, GLenum sfactor, GLenum dfactor) \
+	GLE(void, ClearColor, GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) \
+	GLE(void, Clear, GLbitfield mask) \
+	GLE(void, ClearStencil, GLint s) \
+	GLE(void, ColorMask, GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha) \
+	GLE(void, CopyTexSubImage2D, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height) \
+	GLE(void, CullFace, GLenum mode) \
+	GLE(void, DeleteTextures, GLsizei n, const GLuint *textures) \
+	GLE(void, DepthFunc, GLenum func) \
+	GLE(void, DepthMask, GLboolean flag) \
+	GLE(void, Disable, GLenum cap) \
+	GLE(void, DrawArrays, GLenum mode, GLint first, GLsizei count) \
+	GLE(void, DrawElements, GLenum mode, GLsizei count, GLenum type, const GLvoid *indices) \
+	GLE(void, Enable, GLenum cap) \
+	GLE(void, Finish, void) \
+	GLE(void, Flush, void) \
+	GLE(void, GenTextures, GLsizei n, GLuint *textures ) \
+	GLE(void, GetBooleanv, GLenum pname, GLboolean *params) \
+	GLE(GLenum, GetError, void) \
+	GLE(void, GetIntegerv, GLenum pname, GLint *params) \
+	GLE(const GLubyte *, GetString, GLenum name) \
+	GLE(void, LineWidth, GLfloat width) \
+	GLE(void, PolygonOffset, GLfloat factor, GLfloat units) \
+	GLE(void, ReadPixels, GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels) \
+	GLE(void, Scissor, GLint x, GLint y, GLsizei width, GLsizei height) \
+	GLE(void, StencilFunc, GLenum func, GLint ref, GLuint mask) \
+	GLE(void, StencilMask, GLuint mask) \
+	GLE(void, StencilOp, GLenum fail, GLenum zfail, GLenum zpass) \
+	GLE(void, TexImage2D, GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels) \
+	GLE(void, TexParameterf, GLenum target, GLenum pname, GLfloat param) \
+	GLE(void, TexParameterfv, GLenum target, GLenum pname, const GLfloat *params) \
+	GLE(void, TexParameteri, GLenum target, GLenum pname, GLint param) \
+	GLE(void, TexSubImage2D, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels) \
+	GLE(void, Translatef, GLfloat x, GLfloat y, GLfloat z) \
+	GLE(void, Viewport, GLint x, GLint y, GLsizei width, GLsizei height) \
+
+// OpenGL 1.0/1.1 and OpenGL ES 1.x but not OpenGL 3.2 core profile
+#define QGL_1_1_FIXED_FUNCTION_PROCS \
+	GLE(void, AlphaFunc, GLenum func, GLclampf ref) \
+	GLE(void, Color4f, GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) \
+	GLE(void, Color4ub, GLubyte red, GLubyte green, GLubyte blue, GLubyte alpha) \
+	GLE(void, ColorPointer, GLint size, GLenum type, GLsizei stride, const GLvoid *ptr) \
+	GLE(void, DisableClientState, GLenum cap) \
+	GLE(void, EnableClientState, GLenum cap) \
+	GLE(void, LoadIdentity, void) \
+	GLE(void, LoadMatrixf, const GLfloat *m) \
+	GLE(void, MatrixMode, GLenum mode) \
+	GLE(void, PopMatrix, void) \
+	GLE(void, PushMatrix, void) \
+	GLE(void, ShadeModel, GLenum mode) \
+	GLE(void, TexCoordPointer, GLint size, GLenum type, GLsizei stride, const GLvoid *ptr) \
+	GLE(void, TexEnvf, GLenum target, GLenum pname, GLfloat param) \
+	GLE(void, VertexPointer, GLint size, GLenum type, GLsizei stride, const GLvoid *ptr) \
+
+// OpenGL 1.0/1.1 and 3.2 core profile but not OpenGL ES 1.x
+#define QGL_DESKTOP_1_1_PROCS \
+	GLE(void, ClearDepth, GLclampd depth) \
+	GLE(void, DepthRange, GLclampd near_val, GLclampd far_val) \
+	GLE(void, DrawBuffer, GLenum mode) \
+	GLE(void, PolygonMode, GLenum face, GLenum mode) \
+
+// OpenGL 1.0/1.1 but not OpenGL 3.2 core profile or OpenGL ES 1.x
+#define QGL_DESKTOP_1_1_FIXED_FUNCTION_PROCS \
+	GLE(void, ArrayElement, GLint i) \
+	GLE(void, Begin, GLenum mode) \
+	GLE(void, ClipPlane, GLenum plane, const GLdouble *equation) \
+	GLE(void, Color3f, GLfloat red, GLfloat green, GLfloat blue) \
+	GLE(void, Color4ubv, const GLubyte *v) \
+	GLE(void, End, void) \
+	GLE(void, Frustum, GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) \
+	GLE(void, Ortho, GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) \
+	GLE(void, TexCoord2f, GLfloat s, GLfloat t) \
+	GLE(void, TexCoord2fv, const GLfloat *v) \
+	GLE(void, Vertex2f, GLfloat x, GLfloat y) \
+	GLE(void, Vertex3f, GLfloat x, GLfloat y, GLfloat z) \
+	GLE(void, Vertex3fv, const GLfloat *v) \
+
+// OpenGL ES 1.1 and OpenGL ES 2.0 but not desktop OpenGL 1.x
+#define QGL_ES_1_1_PROCS \
+	GLE(void, ClearDepthf, GLclampf depth) \
+	GLE(void, DepthRangef, GLclampf near_val, GLclampf far_val) \
+
+// OpenGL ES 1.1 but not OpenGL ES 2.0 or desktop OpenGL 1.x
+#define QGL_ES_1_1_FIXED_FUNCTION_PROCS \
+	GLE(void, ClipPlanef, GLenum plane, const GLfloat *equation) \
+	GLE(void, Frustumf, GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) \
+	GLE(void, Orthof, GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) \
+
+// OpenGL 1.3, was GL_ARB_texture_compression
+#define QGL_1_3_PROCS \
+	GLE(void, ActiveTexture, GLenum texture) \
+	GLE(void, CompressedTexImage2D, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void *data) \
+	GLE(void, CompressedTexSubImage2D, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data) \
+
+// GL_ARB_occlusion_query, built-in to OpenGL 1.5 but not OpenGL ES 2.0
+#define QGL_ARB_occlusion_query_PROCS \
+	GLE(void, GenQueries, GLsizei n, GLuint *ids) \
+	GLE(void, DeleteQueries, GLsizei n, const GLuint *ids) \
+	GLE(void, BeginQuery, GLenum target, GLuint id) \
+	GLE(void, EndQuery, GLenum target) \
+	GLE(void, GetQueryObjectiv, GLuint id, GLenum pname, GLint *params) \
+	GLE(void, GetQueryObjectuiv, GLuint id, GLenum pname, GLuint *params) \
+
+// OpenGL 1.5, was GL_ARB_vertex_buffer_object
+#define QGL_1_5_PROCS \
+	GLE(void, BindBuffer, GLenum target, GLuint buffer) \
+	GLE(void, DeleteBuffers, GLsizei n, const GLuint *buffers) \
+	GLE(void, GenBuffers, GLsizei n, GLuint *buffers) \
+	GLE(void, BufferData, GLenum target, GLsizeiptr size, const void *data, GLenum usage) \
+	GLE(void, BufferSubData, GLenum target, GLintptr offset, GLsizeiptr size, const void *data) \
+
+// OpenGL 2.0, was GL_ARB_shading_language_100, GL_ARB_vertex_program, GL_ARB_shader_objects, and GL_ARB_vertex_shader
+#define QGL_2_0_PROCS \
+	GLE(void, AttachShader, GLuint program, GLuint shader) \
+	GLE(void, BindAttribLocation, GLuint program, GLuint index, const GLchar *name) \
+	GLE(void, CompileShader, GLuint shader) \
+	GLE(GLuint, CreateProgram, void) \
+	GLE(GLuint, CreateShader, GLenum type) \
+	GLE(void, DeleteProgram, GLuint program) \
+	GLE(void, DeleteShader, GLuint shader) \
+	GLE(void, DetachShader, GLuint program, GLuint shader) \
+	GLE(void, DisableVertexAttribArray, GLuint index) \
+	GLE(void, EnableVertexAttribArray, GLuint index) \
+	GLE(void, GetActiveUniform, GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name) \
+	GLE(void, GetProgramiv, GLuint program, GLenum pname, GLint *params) \
+	GLE(void, GetProgramInfoLog, GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog) \
+	GLE(void, GetShaderiv, GLuint shader, GLenum pname, GLint *params) \
+	GLE(void, GetShaderInfoLog, GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog) \
+	GLE(void, GetShaderSource, GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *source) \
+	GLE(GLint, GetUniformLocation, GLuint program, const GLchar *name) \
+	GLE(void, LinkProgram, GLuint program) \
+	GLE(void, ShaderSource, GLuint shader, GLsizei count, const GLchar* *string, const GLint *length) \
+	GLE(void, UseProgram, GLuint program) \
+	GLE(void, Uniform1f, GLint location, GLfloat v0) \
+	GLE(void, Uniform2f, GLint location, GLfloat v0, GLfloat v1) \
+	GLE(void, Uniform3f, GLint location, GLfloat v0, GLfloat v1, GLfloat v2) \
+	GLE(void, Uniform4f, GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) \
+	GLE(void, Uniform1i, GLint location, GLint v0) \
+	GLE(void, Uniform1fv, GLint location, GLsizei count, const GLfloat *value) \
+	GLE(void, UniformMatrix4fv, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) \
+	GLE(void, ValidateProgram, GLuint program) \
+	GLE(void, VertexAttribPointer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer) \
+
+// GL_NVX_gpu_memory_info
+#ifndef GL_NVX_gpu_memory_info
+#define GL_NVX_gpu_memory_info
+#define GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX          0x9047
+#define GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX    0x9048
+#define GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX  0x9049
+#define GL_GPU_MEMORY_INFO_EVICTION_COUNT_NVX            0x904A
+#define GL_GPU_MEMORY_INFO_EVICTED_MEMORY_NVX            0x904B
 #endif
 
-#ifndef APIENTRY
-#define APIENTRY
-#endif
-#ifndef APIENTRYP
-#define APIENTRYP APIENTRY *
-#endif
-
-typedef GLsizeiptr GLsizeiptrARB;
-typedef GLintptr GLintptrARB;
-typedef GLuint GLhandleARB;
-typedef GLchar GLcharARB;
-
-#ifndef GL_CLAMP
-#define GL_CLAMP GL_CLAMP_TO_EDGE
-#endif
-#ifndef GL_QUADS
-#define GL_QUADS 0x0007
-#endif
-#ifndef GL_POLYGON
-#define GL_POLYGON 0x0009
-#endif
-#ifndef GL_DOUBLE
-#define GL_DOUBLE GL_FLOAT
-#endif
-#ifndef GL_UNSIGNED_INT
-#define GL_UNSIGNED_INT 0x1405
-#endif
-#ifndef GL_BACK
-#define GL_BACK 0x0405
-#endif
-#ifndef GL_BACK_LEFT
-#define GL_BACK_LEFT GL_BACK
-#endif
-#ifndef GL_BACK_RIGHT
-#define GL_BACK_RIGHT GL_BACK
-#endif
-#ifndef GL_FRONT
-#define GL_FRONT 0x0404
-#endif
-#ifndef GL_FRONT_AND_BACK
-#define GL_FRONT_AND_BACK 0x0408
-#endif
-#ifndef GL_FILL
-#define GL_FILL 0x1B02
-#endif
-#ifndef GL_LINE
-#define GL_LINE 0x1B01
-#endif
-#ifndef GL_RGB8
-#define GL_RGB8 0x8051
-#endif
-#ifndef GL_RGBA8
-#define GL_RGBA8 0x8058
-#endif
-#ifndef GL_RGBA4
-#define GL_RGBA4 0x8056
-#endif
-#ifndef GL_RGB5
-#define GL_RGB5 0x8057
-#endif
-#ifndef GL_LUMINANCE8
-#define GL_LUMINANCE8 0x8040
-#endif
-#ifndef GL_LUMINANCE16
-#define GL_LUMINANCE16 0x8042
-#endif
-#ifndef GL_LUMINANCE8_ALPHA8
-#define GL_LUMINANCE8_ALPHA8 0x8045
-#endif
-#ifndef GL_LUMINANCE16_ALPHA16
-#define GL_LUMINANCE16_ALPHA16 0x8048
-#endif
-#ifndef GL_COMPRESSED_RGBA_S3TC_DXT1_EXT
-#define GL_COMPRESSED_RGBA_S3TC_DXT1_EXT 0x83F1
-#endif
-#ifndef GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
-#define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT 0x83F3
-#endif
-#ifndef GL_RGB4_S3TC
-#define GL_RGB4_S3TC 0x83A1
-#endif
-#ifndef GL_STENCIL_INDEX
-#define GL_STENCIL_INDEX 0x1901
-#endif
-#ifndef GL_DEPTH_COMPONENT
-#define GL_DEPTH_COMPONENT 0x1902
-#endif
-#ifndef GL_TEXTURE_BORDER_COLOR
-#define GL_TEXTURE_BORDER_COLOR 0x1004
-#endif
-#ifndef GL_TEXTURE0
-#define GL_TEXTURE0 GL_TEXTURE0_ARB
-#endif
-#ifndef GL_TEXTURE1
-#define GL_TEXTURE1 GL_TEXTURE1_ARB
-#endif
-#ifndef GL_TEXTURE0_ARB
-#define GL_TEXTURE0_ARB 0x84C0
-#endif
-#ifndef GL_TEXTURE1_ARB
-#define GL_TEXTURE1_ARB 0x84C1
-#endif
-#ifndef GL_MAX_TEXTURE_UNITS_ARB
-#define GL_MAX_TEXTURE_UNITS_ARB GL_MAX_TEXTURE_UNITS
-#endif
-#ifndef GL_STACK_OVERFLOW
-#define GL_STACK_OVERFLOW 0x0503
-#endif
-#ifndef GL_STACK_UNDERFLOW
-#define GL_STACK_UNDERFLOW 0x0504
+// GL_ATI_meminfo
+#ifndef GL_ATI_meminfo
+#define GL_ATI_meminfo
+#define GL_VBO_FREE_MEMORY_ATI                    0x87FB
+#define GL_TEXTURE_FREE_MEMORY_ATI                0x87FC
+#define GL_RENDERBUFFER_FREE_MEMORY_ATI           0x87FD
 #endif
 
-void qglesBegin( GLenum mode );
-void qglesEnd( void );
-void qglesColor3f( GLfloat r, GLfloat g, GLfloat b );
-void qglesColor4f( GLfloat r, GLfloat g, GLfloat b, GLfloat a );
-void qglesColor4ubv( const GLubyte *v );
-void qglesTexCoord2f( GLfloat s, GLfloat t );
-void qglesTexCoord2fv( const GLfloat *v );
-void qglesVertex2f( GLfloat x, GLfloat y );
-void qglesVertex3f( GLfloat x, GLfloat y, GLfloat z );
-void qglesVertex3fv( const GLfloat *v );
-void qglesMultiTexCoord2f( GLenum target, GLfloat s, GLfloat t );
-void qglesDrawBuffer( GLenum mode );
-void qglesReadBuffer( GLenum mode );
-void qglesPolygonMode( GLenum face, GLenum mode );
-void qglesClearDepth( GLclampf depth );
-void qglesDepthRange( GLclampf nearVal, GLclampf farVal );
-void qglesLockArrays( GLint first, GLsizei count );
-void qglesUnlockArrays( void );
-void qglesTexImage2D( GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels );
-void qglesArrayElement( GLint i );
-
-#define glBegin qglesBegin
-#define glEnd qglesEnd
-#define glColor3f qglesColor3f
-#define glColor4f qglesColor4f
-#define glColor4ubv qglesColor4ubv
-#define glTexCoord2f qglesTexCoord2f
-#define glTexCoord2fv qglesTexCoord2fv
-#define glVertex2f qglesVertex2f
-#define glVertex3f qglesVertex3f
-#define glVertex3fv qglesVertex3fv
-#define glMultiTexCoord2fARB qglesMultiTexCoord2f
-#define glActiveTextureARB glActiveTexture
-#define glClientActiveTextureARB glClientActiveTexture
-#define glDrawBuffer qglesDrawBuffer
-#define glReadBuffer qglesReadBuffer
-#define glPolygonMode qglesPolygonMode
-#define glOrtho glOrthof
-#define glClearDepth qglesClearDepth
-#define glDepthRange qglesDepthRange
-#define glLockArraysEXT qglesLockArrays
-#define glUnlockArraysEXT qglesUnlockArrays
-#define glTexImage2D qglesTexImage2D
-#define glArrayElement qglesArrayElement
-#define glTexImage1D(...) ((void)0)
-#define glCopyTexImage1D(...) ((void)0)
-#define glCopyTexSubImage1D(...) ((void)0)
-#define glGetTexImage(...) ((void)0)
-#define glGetTexLevelParameterfv(...) ((void)0)
-#define glGetTexLevelParameteriv(...) ((void)0)
-#define glCallList(...) ((void)0)
-#define glCallLists(...) ((void)0)
-#define glNewList(...) ((void)0)
-#define glEndList(...) ((void)0)
-#define glGenLists(...) (0)
-#define glDeleteLists(...) ((void)0)
-#define glListBase(...) ((void)0)
-#define glIsList(...) (GL_FALSE)
-#define glInitNames(...) ((void)0)
-#define glLoadName(...) ((void)0)
-#define glPushName(...) ((void)0)
-#define glPopName(...) ((void)0)
-#define glFeedbackBuffer(...) ((void)0)
-#define glSelectBuffer(...) ((void)0)
-#define glRenderMode(...) (0)
-#define glPassThrough(...) ((void)0)
-#define glPixelZoom(...) ((void)0)
-#define glDrawPixels(...) ((void)0)
-#define glCopyPixels(...) ((void)0)
-#define glBitmap(...) ((void)0)
-#define glAccum(...) ((void)0)
-#define glClearAccum(...) ((void)0)
-#define glIndexMask(...) ((void)0)
-#define glIndexPointer(...) ((void)0)
-#define glIndexd(...) ((void)0)
-#define glIndexdv(...) ((void)0)
-#define glIndexf(...) ((void)0)
-#define glIndexfv(...) ((void)0)
-#define glIndexi(...) ((void)0)
-#define glIndexiv(...) ((void)0)
-#define glIndexs(...) ((void)0)
-#define glIndexsv(...) ((void)0)
-#define glIndexub(...) ((void)0)
-#define glIndexubv(...) ((void)0)
-#define glAreTexturesResident(...) (GL_FALSE)
-#define glEdgeFlag(...) ((void)0)
-#define glEdgeFlagPointer(...) ((void)0)
-#define glEdgeFlagv(...) ((void)0)
-#define glClipPlane(...) ((void)0)
-#define glGetClipPlane(...) ((void)0)
-#define glGetMapdv(...) ((void)0)
-#define glGetMapfv(...) ((void)0)
-#define glGetMapiv(...) ((void)0)
-#define glMap1d(...) ((void)0)
-#define glMap1f(...) ((void)0)
-#define glMap2d(...) ((void)0)
-#define glMap2f(...) ((void)0)
-#define glMapGrid1d(...) ((void)0)
-#define glMapGrid1f(...) ((void)0)
-#define glMapGrid2d(...) ((void)0)
-#define glMapGrid2f(...) ((void)0)
-#define glEvalCoord1d(...) ((void)0)
-#define glEvalCoord1dv(...) ((void)0)
-#define glEvalCoord1f(...) ((void)0)
-#define glEvalCoord1fv(...) ((void)0)
-#define glEvalCoord2d(...) ((void)0)
-#define glEvalCoord2dv(...) ((void)0)
-#define glEvalCoord2f(...) ((void)0)
-#define glEvalCoord2fv(...) ((void)0)
-#define glEvalMesh1(...) ((void)0)
-#define glEvalMesh2(...) ((void)0)
-#define glEvalPoint1(...) ((void)0)
-#define glEvalPoint2(...) ((void)0)
-#define glColor3b(r,g,b) qglesColor3f((r)/127.0f,(g)/127.0f,(b)/127.0f)
-#define glColor3bv(v) qglesColor3f((v)[0]/127.0f,(v)[1]/127.0f,(v)[2]/127.0f)
-#define glColor3d(r,g,b) qglesColor3f((GLfloat)(r),(GLfloat)(g),(GLfloat)(b))
-#define glColor3dv(v) qglesColor3f((GLfloat)(v)[0],(GLfloat)(v)[1],(GLfloat)(v)[2])
-#define glColor3fv(v) qglesColor3f((v)[0],(v)[1],(v)[2])
-#define glColor3i(r,g,b) qglesColor3f((r)/2147483647.0f,(g)/2147483647.0f,(b)/2147483647.0f)
-#define glColor3iv(v) qglesColor3f((v)[0]/2147483647.0f,(v)[1]/2147483647.0f,(v)[2]/2147483647.0f)
-#define glColor3s(r,g,b) qglesColor3f((r)/32767.0f,(g)/32767.0f,(b)/32767.0f)
-#define glColor3sv(v) qglesColor3f((v)[0]/32767.0f,(v)[1]/32767.0f,(v)[2]/32767.0f)
-#define glColor3ub(r,g,b) qglesColor3f((r)/255.0f,(g)/255.0f,(b)/255.0f)
-#define glColor3ubv(v) qglesColor3f((v)[0]/255.0f,(v)[1]/255.0f,(v)[2]/255.0f)
-#define glColor3ui(r,g,b) qglesColor3f((r)/4294967295.0f,(g)/4294967295.0f,(b)/4294967295.0f)
-#define glColor3uiv(v) qglesColor3f((v)[0]/4294967295.0f,(v)[1]/4294967295.0f,(v)[2]/4294967295.0f)
-#define glColor3us(r,g,b) qglesColor3f((r)/65535.0f,(g)/65535.0f,(b)/65535.0f)
-#define glColor3usv(v) qglesColor3f((v)[0]/65535.0f,(v)[1]/65535.0f,(v)[2]/65535.0f)
-#define glColor4b(r,g,b,a) qglesColor4f((r)/127.0f,(g)/127.0f,(b)/127.0f,(a)/127.0f)
-#define glColor4bv(v) qglesColor4f((v)[0]/127.0f,(v)[1]/127.0f,(v)[2]/127.0f,(v)[3]/127.0f)
-#define glColor4d(r,g,b,a) qglesColor4f((GLfloat)(r),(GLfloat)(g),(GLfloat)(b),(GLfloat)(a))
-#define glColor4dv(v) qglesColor4f((GLfloat)(v)[0],(GLfloat)(v)[1],(GLfloat)(v)[2],(GLfloat)(v)[3])
-#define glColor4fv(v) qglesColor4f((v)[0],(v)[1],(v)[2],(v)[3])
-#define glColor4i(r,g,b,a) qglesColor4f((r)/2147483647.0f,(g)/2147483647.0f,(b)/2147483647.0f,(a)/2147483647.0f)
-#define glColor4iv(v) qglesColor4f((v)[0]/2147483647.0f,(v)[1]/2147483647.0f,(v)[2]/2147483647.0f,(v)[3]/2147483647.0f)
-#define glColor4s(r,g,b,a) qglesColor4f((r)/32767.0f,(g)/32767.0f,(b)/32767.0f,(a)/32767.0f)
-#define glColor4sv(v) qglesColor4f((v)[0]/32767.0f,(v)[1]/32767.0f,(v)[2]/32767.0f,(v)[3]/32767.0f)
-#define glColor4ub(r,g,b,a) qglesColor4f((r)/255.0f,(g)/255.0f,(b)/255.0f,(a)/255.0f)
-#define glColor4ui(r,g,b,a) qglesColor4f((r)/4294967295.0f,(g)/4294967295.0f,(b)/4294967295.0f,(a)/4294967295.0f)
-#define glColor4uiv(v) qglesColor4f((v)[0]/4294967295.0f,(v)[1]/4294967295.0f,(v)[2]/4294967295.0f,(v)[3]/4294967295.0f)
-#define glColor4us(r,g,b,a) qglesColor4f((r)/65535.0f,(g)/65535.0f,(b)/65535.0f,(a)/65535.0f)
-#define glColor4usv(v) qglesColor4f((v)[0]/65535.0f,(v)[1]/65535.0f,(v)[2]/65535.0f,(v)[3]/65535.0f)
-#define glTexCoord1d(s) qglesTexCoord2f((GLfloat)(s),0)
-#define glTexCoord1dv(v) qglesTexCoord2f((GLfloat)(v)[0],0)
-#define glTexCoord1f(s) qglesTexCoord2f((s),0)
-#define glTexCoord1fv(v) qglesTexCoord2f((v)[0],0)
-#define glTexCoord1i(s) qglesTexCoord2f((GLfloat)(s),0)
-#define glTexCoord1iv(v) qglesTexCoord2f((GLfloat)(v)[0],0)
-#define glTexCoord1s(s) qglesTexCoord2f((GLfloat)(s),0)
-#define glTexCoord1sv(v) qglesTexCoord2f((GLfloat)(v)[0],0)
-#define glTexCoord2d(s,t) qglesTexCoord2f((GLfloat)(s),(GLfloat)(t))
-#define glTexCoord2dv(v) qglesTexCoord2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glTexCoord2i(s,t) qglesTexCoord2f((GLfloat)(s),(GLfloat)(t))
-#define glTexCoord2iv(v) qglesTexCoord2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glTexCoord2s(s,t) qglesTexCoord2f((GLfloat)(s),(GLfloat)(t))
-#define glTexCoord2sv(v) qglesTexCoord2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glTexCoord3d(s,t,r) qglesTexCoord2f((GLfloat)(s),(GLfloat)(t))
-#define glTexCoord3dv(v) qglesTexCoord2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glTexCoord3f(s,t,r) qglesTexCoord2f((s),(t))
-#define glTexCoord3fv(v) qglesTexCoord2f((v)[0],(v)[1])
-#define glTexCoord3i(s,t,r) qglesTexCoord2f((GLfloat)(s),(GLfloat)(t))
-#define glTexCoord3iv(v) qglesTexCoord2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glTexCoord3s(s,t,r) qglesTexCoord2f((GLfloat)(s),(GLfloat)(t))
-#define glTexCoord3sv(v) qglesTexCoord2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glTexCoord4d(s,t,r,q) qglesTexCoord2f((GLfloat)(s),(GLfloat)(t))
-#define glTexCoord4dv(v) qglesTexCoord2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glTexCoord4f(s,t,r,q) qglesTexCoord2f((s),(t))
-#define glTexCoord4fv(v) qglesTexCoord2f((v)[0],(v)[1])
-#define glTexCoord4i(s,t,r,q) qglesTexCoord2f((GLfloat)(s),(GLfloat)(t))
-#define glTexCoord4iv(v) qglesTexCoord2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glTexCoord4s(s,t,r,q) qglesTexCoord2f((GLfloat)(s),(GLfloat)(t))
-#define glTexCoord4sv(v) qglesTexCoord2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glVertex2d(x,y) qglesVertex2f((GLfloat)(x),(GLfloat)(y))
-#define glVertex2dv(v) qglesVertex2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glVertex2fv(v) qglesVertex2f((v)[0],(v)[1])
-#define glVertex2i(x,y) qglesVertex2f((GLfloat)(x),(GLfloat)(y))
-#define glVertex2iv(v) qglesVertex2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glVertex2s(x,y) qglesVertex2f((GLfloat)(x),(GLfloat)(y))
-#define glVertex2sv(v) qglesVertex2f((GLfloat)(v)[0],(GLfloat)(v)[1])
-#define glVertex3d(x,y,z) qglesVertex3f((GLfloat)(x),(GLfloat)(y),(GLfloat)(z))
-#define glVertex3dv(v) qglesVertex3f((GLfloat)(v)[0],(GLfloat)(v)[1],(GLfloat)(v)[2])
-#define glVertex3i(x,y,z) qglesVertex3f((GLfloat)(x),(GLfloat)(y),(GLfloat)(z))
-#define glVertex3iv(v) qglesVertex3f((GLfloat)(v)[0],(GLfloat)(v)[1],(GLfloat)(v)[2])
-#define glVertex3s(x,y,z) qglesVertex3f((GLfloat)(x),(GLfloat)(y),(GLfloat)(z))
-#define glVertex3sv(v) qglesVertex3f((GLfloat)(v)[0],(GLfloat)(v)[1],(GLfloat)(v)[2])
-#define glVertex4d(x,y,z,w) qglesVertex3f((GLfloat)(x),(GLfloat)(y),(GLfloat)(z))
-#define glVertex4dv(v) qglesVertex3f((GLfloat)(v)[0],(GLfloat)(v)[1],(GLfloat)(v)[2])
-#define glVertex4f(x,y,z,w) qglesVertex3f((x),(y),(z))
-#define glVertex4fv(v) qglesVertex3f((v)[0],(v)[1],(v)[2])
-#define glVertex4i(x,y,z,w) qglesVertex3f((GLfloat)(x),(GLfloat)(y),(GLfloat)(z))
-#define glVertex4iv(v) qglesVertex3f((GLfloat)(v)[0],(GLfloat)(v)[1],(GLfloat)(v)[2])
-#define glVertex4s(x,y,z,w) qglesVertex3f((GLfloat)(x),(GLfloat)(y),(GLfloat)(z))
-#define glVertex4sv(v) qglesVertex3f((GLfloat)(v)[0],(GLfloat)(v)[1],(GLfloat)(v)[2])
-
+// GL_ARB_texture_float
+#ifndef GL_ARB_texture_float
+#define GL_ARB_texture_float
+#define GL_TEXTURE_RED_TYPE_ARB             0x8C10
+#define GL_TEXTURE_GREEN_TYPE_ARB           0x8C11
+#define GL_TEXTURE_BLUE_TYPE_ARB            0x8C12
+#define GL_TEXTURE_ALPHA_TYPE_ARB           0x8C13
+#define GL_TEXTURE_LUMINANCE_TYPE_ARB       0x8C14
+#define GL_TEXTURE_INTENSITY_TYPE_ARB       0x8C15
+#define GL_TEXTURE_DEPTH_TYPE_ARB           0x8C16
+#define GL_UNSIGNED_NORMALIZED_ARB          0x8C17
+#define GL_RGBA32F_ARB                      0x8814
+#define GL_RGB32F_ARB                       0x8815
+#define GL_ALPHA32F_ARB                     0x8816
+#define GL_INTENSITY32F_ARB                 0x8817
+#define GL_LUMINANCE32F_ARB                 0x8818
+#define GL_LUMINANCE_ALPHA32F_ARB           0x8819
+#define GL_RGBA16F_ARB                      0x881A
+#define GL_RGB16F_ARB                       0x881B
+#define GL_ALPHA16F_ARB                     0x881C
+#define GL_INTENSITY16F_ARB                 0x881D
+#define GL_LUMINANCE16F_ARB                 0x881E
+#define GL_LUMINANCE_ALPHA16F_ARB           0x881F
 #endif
+
+#ifndef GL_ARB_half_float_pixel
+#define GL_ARB_half_float_pixel
+#define GL_HALF_FLOAT_ARB                   0x140B
+#endif
+
+// OpenGL 3.0 specific
+#define QGL_3_0_PROCS \
+	GLE(const GLubyte *, GetStringi, GLenum name, GLuint index) \
+
+// GL_ARB_framebuffer_object, built-in to OpenGL 3.0
+#define QGL_ARB_framebuffer_object_PROCS \
+	GLE(void, BindRenderbuffer, GLenum target, GLuint renderbuffer) \
+	GLE(void, DeleteRenderbuffers, GLsizei n, const GLuint *renderbuffers) \
+	GLE(void, GenRenderbuffers, GLsizei n, GLuint *renderbuffers) \
+	GLE(void, RenderbufferStorage, GLenum target, GLenum internalformat, GLsizei width, GLsizei height) \
+	GLE(void, BindFramebuffer, GLenum target, GLuint framebuffer) \
+	GLE(void, DeleteFramebuffers, GLsizei n, const GLuint *framebuffers) \
+	GLE(void, GenFramebuffers, GLsizei n, GLuint *framebuffers) \
+	GLE(GLenum, CheckFramebufferStatus, GLenum target) \
+	GLE(void, FramebufferTexture2D, GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) \
+	GLE(void, FramebufferRenderbuffer, GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) \
+	GLE(void, GenerateMipmap, GLenum target) \
+	GLE(void, BlitFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) \
+	GLE(void, RenderbufferStorageMultisample, GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) \
+
+// GL_ARB_vertex_array_object, built-in to OpenGL 3.0
+#define QGL_ARB_vertex_array_object_PROCS \
+	GLE(void, BindVertexArray, GLuint array) \
+	GLE(void, DeleteVertexArrays, GLsizei n, const GLuint *arrays) \
+	GLE(void, GenVertexArrays, GLsizei n, GLuint *arrays) \
+
+#ifndef GL_ARB_texture_compression_rgtc
+#define GL_ARB_texture_compression_rgtc
+#define GL_COMPRESSED_RED_RGTC1                       0x8DBB
+#define GL_COMPRESSED_SIGNED_RED_RGTC1                0x8DBC
+#define GL_COMPRESSED_RG_RGTC2                        0x8DBD
+#define GL_COMPRESSED_SIGNED_RG_RGTC2                 0x8DBE
+#endif
+
+#ifndef GL_ARB_texture_compression_bptc
+#define GL_ARB_texture_compression_bptc
+#define GL_COMPRESSED_RGBA_BPTC_UNORM_ARB                 0x8E8C
+#define GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB           0x8E8D
+#define GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB           0x8E8E
+#define GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB         0x8E8F
+#endif
+
+#ifndef GL_ARB_depth_clamp
+#define GL_ARB_depth_clamp
+#define GL_DEPTH_CLAMP				      0x864F
+#endif
+
+#ifndef GL_ARB_seamless_cube_map
+#define GL_ARB_seamless_cube_map
+#define GL_TEXTURE_CUBE_MAP_SEAMLESS               0x884F
+#endif
+
+// GL_EXT_direct_state_access
+#define QGL_EXT_direct_state_access_PROCS \
+	GLE(GLvoid, BindMultiTextureEXT, GLenum texunit, GLenum target, GLuint texture) \
+	GLE(GLvoid, TextureParameterfEXT, GLuint texture, GLenum target, GLenum pname, GLfloat param) \
+	GLE(GLvoid, TextureParameteriEXT, GLuint texture, GLenum target, GLenum pname, GLint param) \
+	GLE(GLvoid, TextureImage2DEXT, GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels) \
+	GLE(GLvoid, TextureSubImage2DEXT, GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels) \
+	GLE(GLvoid, CopyTextureSubImage2DEXT, GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height) \
+	GLE(GLvoid, CompressedTextureImage2DEXT, GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const GLvoid *data) \
+	GLE(GLvoid, CompressedTextureSubImage2DEXT, GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const GLvoid *data) \
+	GLE(GLvoid, GenerateTextureMipmapEXT, GLuint texture, GLenum target) \
+	GLE(GLvoid, ProgramUniform1iEXT, GLuint program, GLint location, GLint v0) \
+	GLE(GLvoid, ProgramUniform1fEXT, GLuint program, GLint location, GLfloat v0) \
+	GLE(GLvoid, ProgramUniform2fEXT, GLuint program, GLint location, GLfloat v0, GLfloat v1) \
+	GLE(GLvoid, ProgramUniform3fEXT, GLuint program, GLint location, GLfloat v0, GLfloat v1, GLfloat v2) \
+	GLE(GLvoid, ProgramUniform4fEXT, GLuint program, GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) \
+	GLE(GLvoid, ProgramUniform1fvEXT, GLuint program, GLint location, GLsizei count, const GLfloat *value) \
+	GLE(GLvoid, ProgramUniformMatrix4fvEXT, GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) \
+	GLE(GLvoid, NamedRenderbufferStorageEXT, GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height) \
+	GLE(GLvoid, NamedRenderbufferStorageMultisampleEXT, GLuint renderbuffer, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) \
+	GLE(GLenum, CheckNamedFramebufferStatusEXT, GLuint framebuffer, GLenum target) \
+	GLE(GLvoid, NamedFramebufferTexture2DEXT, GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) \
+	GLE(GLvoid, NamedFramebufferRenderbufferEXT, GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) \
+
+#define GLE(ret, name, ...) typedef ret APIENTRY name##proc(__VA_ARGS__);
+QGL_1_1_PROCS;
+QGL_1_1_FIXED_FUNCTION_PROCS;
+QGL_DESKTOP_1_1_PROCS;
+QGL_DESKTOP_1_1_FIXED_FUNCTION_PROCS;
+QGL_ES_1_1_PROCS;
+QGL_ES_1_1_FIXED_FUNCTION_PROCS;
+QGL_1_3_PROCS;
+QGL_1_5_PROCS;
+QGL_2_0_PROCS;
+QGL_3_0_PROCS;
+QGL_ARB_occlusion_query_PROCS;
+QGL_ARB_framebuffer_object_PROCS;
+QGL_ARB_vertex_array_object_PROCS;
+QGL_EXT_direct_state_access_PROCS;
+#undef GLE
+
+#define GLE(ret, name, ...) extern name##proc * qgl##name;
+QGL_1_1_PROCS;
+QGL_1_1_FIXED_FUNCTION_PROCS;
+QGL_DESKTOP_1_1_PROCS;
+QGL_DESKTOP_1_1_FIXED_FUNCTION_PROCS;
+QGL_ES_1_1_PROCS;
+QGL_ES_1_1_FIXED_FUNCTION_PROCS;
+QGL_1_3_PROCS;
+QGL_1_5_PROCS;
+QGL_2_0_PROCS;
+QGL_3_0_PROCS;
+QGL_ARB_occlusion_query_PROCS;
+QGL_ARB_framebuffer_object_PROCS;
+QGL_ARB_vertex_array_object_PROCS;
+QGL_EXT_direct_state_access_PROCS;
+#undef GLE
+
+extern int qglMajorVersion, qglMinorVersion;
+extern int qglesMajorVersion, qglesMinorVersion;
+#define QGL_VERSION_ATLEAST( major, minor ) ( qglMajorVersion > major || ( qglMajorVersion == major && qglMinorVersion >= minor ) )
+#define QGLES_VERSION_ATLEAST( major, minor ) ( qglesMajorVersion > major || ( qglesMajorVersion == major && qglesMinorVersion >= minor ) )
+
+#endif /* __QGL_ES1_H__ */

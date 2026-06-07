@@ -61,3 +61,8 @@ void IOS_Layer_OpenTouchSettings( void )
 {
 	// The first playable port keeps settings as cvars; this hook is for a later UIKit editor.
 }
+
+void IOS_Layer_AttachToWindow( void )
+{
+	IOS_UpdateSafeArea();
+}

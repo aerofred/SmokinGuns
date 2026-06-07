@@ -38,13 +38,15 @@ static void IN_ProcessEvent( SDL_Event *event )
 			IN_TouchFinger( event->tfinger.fingerId, event->tfinger.x, event->tfinger.y, qfalse, qfalse );
 			break;
 		case SDL_MOUSEMOTION:
-			if( IN_TouchInUIMode() )
-				Com_QueueEvent( 0, SE_MOUSE, event->motion.xrel, event->motion.yrel, 0, NULL );
-			break;
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
-			Com_QueueEvent( 0, SE_KEY, event->button.button == SDL_BUTTON_RIGHT ? K_MOUSE2 : K_MOUSE1,
-				event->button.state == SDL_PRESSED, 0, NULL );
+			if( IN_TouchInUIMode() )
+				break;
+			if( event->type == SDL_MOUSEMOTION )
+				Com_QueueEvent( 0, SE_MOUSE, event->motion.xrel, event->motion.yrel, 0, NULL );
+			else
+				Com_QueueEvent( 0, SE_KEY, event->button.button == SDL_BUTTON_RIGHT ? K_MOUSE2 : K_MOUSE1,
+					event->button.state == SDL_PRESSED, 0, NULL );
 			break;
 		case SDL_CONTROLLERBUTTONDOWN:
 		case SDL_CONTROLLERBUTTONUP:

@@ -27,5 +27,6 @@ void IOS_Layer_SyncScreen( int width, int height, float scale );
 void IOS_Layer_GetLayout( iosLayout_t *layout );
 void IOS_Layer_SetGameOverlayVisible( qboolean visible );
 void IOS_Layer_OpenTouchSettings( void );
+void IOS_Layer_AttachToWindow( void );
 
 #endif

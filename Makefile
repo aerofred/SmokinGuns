@@ -522,10 +522,15 @@ ifeq ($(PLATFORM),ios)
   FULLBINEXT=.arm64
   BINEXT=
 
+  ifndef USE_GLES_FIXED
+    USE_GLES_FIXED=1
+  endif
+
   BASE_CFLAGS = -Wall -Wimplicit -Wstrict-prototypes -fno-strict-aliasing \
-    -fno-common -pipe -DIOS -DNO_VM_COMPILED -arch arm64 -isysroot $(IOS_SDK) \
+    -fno-common -pipe -DIOS -DNO_VM_COMPILED -DUSE_SDL2=1 -DUSE_GLES_FIXED=1 \
+    -arch arm64 -isysroot $(IOS_SDK) \
     -miphoneos-version-min=12.0 -I$(IOS_SDL_ROOT)/include
-  CLIENT_CFLAGS += -DUSE_SDL2
+  CLIENT_CFLAGS += -DUSE_SDL2 -DUSE_GLES_FIXED=1
   OPTIMIZEVM=
   OPTIMIZE=-DNDEBUG -O2
   LIBS=-lm
@@ -2156,10 +2161,11 @@ ifeq ($(PLATFORM),darwin)
 endif
 
 ifeq ($(PLATFORM),ios)
-  Q3ROBJ := $(filter-out $(B)/renderergl1/sdl_glimp.o $(B)/renderergl1/sdl_gamma.o,$(Q3ROBJ))
+  Q3ROBJ := $(filter-out $(B)/renderergl1/sdl_glimp.o \
+    $(B)/renderergl1/tr_framebuffer.o $(B)/renderergl1/tr_glslprogs.o,$(Q3ROBJ))
   Q3ROBJ += \
     $(B)/renderergl1/sdl_glimp_ios.o \
-    $(B)/renderergl1/qgles.o
+    $(B)/renderergl1/gles_es1_stubs.o
 endif
 
 ifeq ($(USE_MUMBLE),1)

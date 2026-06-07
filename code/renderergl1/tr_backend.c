@@ -719,6 +719,45 @@ void	RB_SetGL2D (void) {
 	backEnd.refdef.floatTime = backEnd.refdef.time * 0.001f;
 }
 
+/*
+================
+RB_InstantQuad2
+================
+*/
+void RB_InstantQuad2( vec4_t quadVerts[4], vec2_t texCoords[4] ) {
+	glIndex_t indexes[6];
+
+	qglDisableClientState( GL_COLOR_ARRAY );
+	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
+
+	qglTexCoordPointer( 2, GL_FLOAT, 0, texCoords );
+	qglVertexPointer( 3, GL_FLOAT, 16, quadVerts );
+
+	indexes[0] = 0;
+	indexes[1] = 1;
+	indexes[2] = 2;
+	indexes[3] = 0;
+	indexes[4] = 2;
+	indexes[5] = 3;
+
+	R_DrawElements( 6, indexes );
+}
+
+/*
+================
+RB_InstantQuad
+================
+*/
+void RB_InstantQuad( vec4_t quadVerts[4] ) {
+	vec2_t texCoords[4] = {
+		{ 0, 0 },
+		{ 1, 0 },
+		{ 1, 1 },
+		{ 0, 1 }
+	};
+
+	RB_InstantQuad2( quadVerts, texCoords );
+}
 
 /*
 =============
@@ -732,6 +771,8 @@ Used for cinematics.
 void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *data, int client, qboolean dirty) {
 	int			i, j;
 	int			start, end;
+	vec4_t		quadVerts[4];
+	vec2_t		texCoords[4];
 
 	if ( !tr.registered ) {
 		return;
@@ -764,47 +805,33 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 		ri.Error (ERR_DROP, "Draw_StretchRaw: size not a power of 2: %i by %i", cols, rows);
 	}
 
-	GL_Bind( tr.scratchImage[client] );
-
-	// if the scratchImage isn't in the format we want, specify it as a new texture
-	if ( cols != tr.scratchImage[client]->width || rows != tr.scratchImage[client]->height ) {
-		tr.scratchImage[client]->width = tr.scratchImage[client]->uploadWidth = cols;
-		tr.scratchImage[client]->height = tr.scratchImage[client]->uploadHeight = rows;
-		qglTexImage2D( GL_TEXTURE_2D, 0, GL_RGB8, cols, rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
-		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );	
-	} else {
-		if (dirty) {
-			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
-			// it and don't try and do a texture compression
-			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
-		}
-	}
+	RE_UploadCinematic( w, h, cols, rows, data, client, dirty );
 
 	if ( r_speeds->integer ) {
 		end = ri.Milliseconds();
 		ri.Printf( PRINT_ALL, "qglTexSubImage2D %i, %i: %i msec\n", cols, rows, end - start );
 	}
+	GL_Bind( tr.scratchImage[client] );
 
 	RB_SetGL2D();
 
 	qglColor3f( tr.identityLight, tr.identityLight, tr.identityLight );
 
-	qglBegin (GL_QUADS);
-	qglTexCoord2f ( 0.5f / cols,  0.5f / rows );
-	qglVertex2f (x, y);
-	qglTexCoord2f ( ( cols - 0.5f ) / cols ,  0.5f / rows );
-	qglVertex2f (x+w, y);
-	qglTexCoord2f ( ( cols - 0.5f ) / cols, ( rows - 0.5f ) / rows );
-	qglVertex2f (x+w, y+h);
-	qglTexCoord2f ( 0.5f / cols, ( rows - 0.5f ) / rows );
-	qglVertex2f (x, y+h);
-	qglEnd ();
+	quadVerts[0][0] = x;     quadVerts[0][1] = y;     quadVerts[0][2] = 0.0f; quadVerts[0][3] = 1.0f;
+	quadVerts[1][0] = x + w; quadVerts[1][1] = y;     quadVerts[1][2] = 0.0f; quadVerts[1][3] = 1.0f;
+	quadVerts[2][0] = x + w; quadVerts[2][1] = y + h; quadVerts[2][2] = 0.0f; quadVerts[2][3] = 1.0f;
+	quadVerts[3][0] = x;     quadVerts[3][1] = y + h; quadVerts[3][2] = 0.0f; quadVerts[3][3] = 1.0f;
+
+	texCoords[0][0] = 0.5f / cols;          texCoords[0][1] = 0.5f / rows;
+	texCoords[1][0] = (cols - 0.5f) / cols; texCoords[1][1] = 0.5f / rows;
+	texCoords[2][0] = (cols - 0.5f) / cols; texCoords[2][1] = (rows - 0.5f) / rows;
+	texCoords[3][0] = 0.5f / cols;          texCoords[3][1] = (rows - 0.5f) / rows;
+
+	RB_InstantQuad2( quadVerts, texCoords );
 }
 
 void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int client, qboolean dirty) {
+	byte *buffer;
 
 	GL_Bind( tr.scratchImage[client] );
 
@@ -812,6 +839,14 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 	if ( cols != tr.scratchImage[client]->width || rows != tr.scratchImage[client]->height ) {
 		tr.scratchImage[client]->width = tr.scratchImage[client]->uploadWidth = cols;
 		tr.scratchImage[client]->height = tr.scratchImage[client]->uploadHeight = rows;
+#ifdef USE_GLES_FIXED
+		if ( qglesMajorVersion >= 1 ) {
+			buffer = ri.Hunk_AllocateTempMemory( 3 * cols * rows );
+			R_ConvertTextureFormat( data, cols, rows, GL_RGB, GL_UNSIGNED_BYTE, buffer );
+			qglTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, cols, rows, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer );
+			ri.Hunk_FreeTempMemory( buffer );
+		} else
+#endif
 		qglTexImage2D( GL_TEXTURE_2D, 0, GL_RGB8, cols, rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
@@ -819,8 +854,14 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );	
 	} else {
 		if (dirty) {
-			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
-			// it and don't try and do a texture compression
+#ifdef USE_GLES_FIXED
+			if ( qglesMajorVersion >= 1 ) {
+				buffer = ri.Hunk_AllocateTempMemory( 3 * cols * rows );
+				R_ConvertTextureFormat( data, cols, rows, GL_RGB, GL_UNSIGNED_BYTE, buffer );
+				qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGB, GL_UNSIGNED_BYTE, buffer );
+				ri.Hunk_FreeTempMemory( buffer );
+			} else
+#endif
 			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
 		}
 	}

@@ -32,6 +32,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <winsock.h>
 #endif
 
+#ifdef IOS
+#include "../ios/ios_loading.h"
+#endif
+
 int demo_protocols[] =
 { 67, 66, 0 };
 
@@ -2719,7 +2723,13 @@ void Com_Init( char *commandLine ) {
 	if(!com_basegame->string[0])
 		Cvar_ForceReset("com_basegame");
 
+#ifdef IOS
+	IOS_Loading_SetProgress( 0.08f, "Fichiers de jeu…" );
+#endif
 	FS_InitFilesystem ();
+#ifdef IOS
+	IOS_Loading_SetProgress( 0.45f, "Configuration…" );
+#endif
 
 	Com_InitJournaling();
 
@@ -2790,7 +2800,11 @@ void Com_Init( char *commandLine ) {
 	com_busyWait = Cvar_Get("com_busyWait", "0", CVAR_ARCHIVE);
 	Cvar_Get("com_errorMessage", "", CVAR_ROM | CVAR_NORESTART);
 
+#ifdef IOS
+	com_introPlayed = Cvar_Get( "com_introplayed", "1", CVAR_ARCHIVE);
+#else
 	com_introPlayed = Cvar_Get( "com_introplayed", "0", CVAR_ARCHIVE);
+#endif
 
 #ifndef SMOKINGUNS
 	s = va("%s %s %s", Q3_VERSION, PLATFORM_STRING, __DATE__ );
@@ -2811,6 +2825,10 @@ void Com_Init( char *commandLine ) {
 		Cvar_Get("protocol", com_protocol->string, CVAR_ROM);
 
 	Sys_Init();
+
+#ifdef IOS
+	IOS_Loading_SetProgress( 0.55f, "Moteur…" );
+#endif
 
 	if( Sys_WritePIDFile( ) ) {
 #ifndef DEDICATED
@@ -2833,6 +2851,9 @@ void Com_Init( char *commandLine ) {
 
 	com_dedicated->modified = qfalse;
 #ifndef DEDICATED
+#ifdef IOS
+	IOS_Loading_SetProgress( 0.65f, "Client…" );
+#endif
 	CL_Init();
 #endif
 
@@ -2845,17 +2866,24 @@ void Com_Init( char *commandLine ) {
 	if ( !Com_AddStartupCommands() ) {
 		// if the user didn't give any commands, run default action
 		if ( !com_dedicated->integer ) {
+#ifdef IOS
+			Cvar_Set( com_introPlayed->name, "1" );
+#else
 			Cbuf_AddText ("cinematic idlogo.RoQ\n");
 			if( !com_introPlayed->integer ) {
 				Cvar_Set( com_introPlayed->name, "1" );
 				Cvar_Set( "nextmap", "cinematic intro.RoQ" );
 			}
+#endif
 		}
 	}
 
 	// start in full screen ui mode
 	Cvar_Set("r_uiFullScreen", "1");
 
+#ifdef IOS
+	IOS_Loading_SetProgress( 0.80f, "Graphismes et interface…" );
+#endif
 	CL_StartHunkUsers( qfalse );
 
 	// make sure single player is off by default
