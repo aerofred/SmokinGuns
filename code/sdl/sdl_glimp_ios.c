@@ -222,6 +222,11 @@ static void GLimp_SyncIOSLayer( void )
 	 scale = (float)drawableW / (float)pointsW;
 	}
 
+	if ( drawableW > 0 && drawableH > 0 ) {
+		Cvar_Set( "r_customwidth", va( "%d", drawableW ) );
+		Cvar_Set( "r_customheight", va( "%d", drawableH ) );
+	}
+
 	IOS_Layer_SyncScreen( drawableW, drawableH, scale );
 	IN_TouchSyncLayout( drawableW, drawableH, scale );
 }
@@ -439,6 +444,9 @@ void GLimp_Init( void )
 	r_sdlDriver = ri.Cvar_Get( "r_sdlDriver", "ios", CVAR_ROM );
 	r_allowResize = ri.Cvar_Get( "r_allowResize", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_centerWindow = ri.Cvar_Get( "r_centerWindow", "0", CVAR_ARCHIVE | CVAR_LATCH );
+
+	SDL_SetHint( "SDL_VIDEO_HIGHDPI_DISABLED", "0" );
+	SDL_SetHint( "SDL_IOS_HIDE_HOME_INDICATOR", "2" );
 
 	if ( !SDL_WasInit( SDL_INIT_VIDEO ) )
 	{

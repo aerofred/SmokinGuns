@@ -26,6 +26,11 @@ void IOS_Layer_Tick( void );
 void IOS_Layer_SyncScreen( int width, int height, float scale );
 void IOS_Layer_GetLayout( iosLayout_t *layout );
 void IOS_Layer_SetGameOverlayVisible( qboolean visible );
+void IOS_Layer_UpdateTouchControls( qboolean visible, float opacity, int mode,
+	float moveX, float moveY, float moveRadius,
+	float fireX, float fireY, float fireRadius, qboolean fireActive,
+	float weaponX, float weaponY, float weaponRadius,
+	float menuX, float menuY, float menuRadius );
 void IOS_Layer_OpenTouchSettings( void );
 void IOS_Layer_AttachToWindow( void );
 

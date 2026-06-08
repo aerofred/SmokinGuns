@@ -66,7 +66,13 @@ cp -R "$ROOT/baseq3" "$APP_DIR/baseq3"
 cp -R "$ROOT/ui" "$APP_DIR/ui"
 
 if [ -f "$ROOT/misc/smokinguns.png" ]; then
-	cp "$ROOT/misc/smokinguns.png" "$APP_DIR/AppIcon.png"
+	python3 "$ROOT/misc/ios/composite_app_icon.py" \
+		"$ROOT/misc/smokinguns.png" \
+		"$APP_DIR/AppIcon.png" \
+		1024
+fi
+if [ -f "$ROOT/misc/ios/LaunchScreen.storyboard" ]; then
+	cp "$ROOT/misc/ios/LaunchScreen.storyboard" "$APP_DIR/LaunchScreen.storyboard"
 fi
 
 cat > "$APP_DIR/Info.plist" <<'PLIST'
@@ -85,6 +91,8 @@ cat > "$APP_DIR/Info.plist" <<'PLIST'
 	<key>CFBundleShortVersionString</key><string>1.2</string>
 	<key>CFBundleVersion</key><string>1</string>
 	<key>LSRequiresIPhoneOS</key><true/>
+	<key>UILaunchStoryboardName</key><string>LaunchScreen</string>
+	<key>UIRequiresFullScreen</key><true/>
 	<key>NSBonjourServices</key><array><string>_quake3._udp</string></array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Smokin' Guns uses the local network for LAN multiplayer games.</string>

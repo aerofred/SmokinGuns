@@ -761,7 +761,7 @@ int main( int argc, char **argv )
 
 #ifdef IOS
 	Q_strcat( commandLine, sizeof( commandLine ),
-		"+set r_mode -1 +set r_fullscreen 1 +set in_touch 1 "
+		"+set r_mode -2 +set r_fullscreen 1 +set in_touch 1 "
 		"+set vm_cgame 2 +set vm_game 2 +set vm_ui 2 " );
 #endif
 

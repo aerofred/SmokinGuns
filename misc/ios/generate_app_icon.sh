@@ -36,6 +36,14 @@ if [ -z "${MASTER}" ]; then
 	exit 1
 fi
 
+COMPOSITED="${WORK}/icon-wood-1024.png"
+if python3 -c 'import PIL' >/dev/null 2>&1; then
+	python3 "${SCRIPT_DIR}/composite_app_icon.py" "${MASTER}" "${COMPOSITED}" 1024
+else
+	echo "Pillow not available; generating plain app icon from ${ICNS}"
+	sips -z 1024 1024 "${MASTER}" --out "${COMPOSITED}" >/dev/null
+fi
+
 ICONSET="${WORK}/AppIcon.appiconset"
 mkdir -p "${ICONSET}"
 
@@ -55,7 +63,7 @@ for spec in \
 	"1024:Icon-1024.png"; do
 	size="${spec%%:*}"
 	out="${spec##*:}"
-	sips -z "${size}" "${size}" "${MASTER}" --out "${ICONSET}/${out}" >/dev/null
+	sips -z "${size}" "${size}" "${COMPOSITED}" --out "${ICONSET}/${out}" >/dev/null
 done
 
 cat > "${ICONSET}/Contents.json" <<'EOF'
@@ -87,13 +95,21 @@ ASSETS="${WORK}/Assets.xcassets"
 mkdir -p "${ASSETS}"
 mv "${ICONSET}" "${ASSETS}/AppIcon.appiconset"
 
-xcrun actool "${ASSETS}" \
+if xcrun actool "${ASSETS}" \
 	--compile "${APP}" \
 	--platform iphoneos \
 	--minimum-deployment-target 15.0 \
 	--app-icon AppIcon \
-	--output-partial-info-plist "${WORK}/partial.plist" >/dev/null
+	--output-partial-info-plist "${WORK}/partial.plist" >/dev/null; then
+	echo "Assets.car generated"
+else
+	echo "warning: actool failed; copying icon PNG fallback without Assets.car" >&2
+	cp "${ASSETS}/AppIcon.appiconset/Icon-120.png" "${APP}/AppIcon60x60@2x.png"
+	cp "${ASSETS}/AppIcon.appiconset/Icon-180.png" "${APP}/AppIcon60x60@3x.png"
+	cp "${ASSETS}/AppIcon.appiconset/Icon-152.png" "${APP}/AppIcon76x76@2x.png"
+	cp "${ASSETS}/AppIcon.appiconset/Icon-1024.png" "${APP}/AppIcon.png"
+fi
 
 cp "${ASSETS}/AppIcon.appiconset/Icon-1024.png" "${APP}/SplashIcon.png"
 
-echo "App icon generated from smokinguns.icns"
+echo "App icon generated from smokinguns.icns with wood texture background"

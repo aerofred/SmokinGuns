@@ -3092,4 +3092,3 @@ void CG_KeyEvent(int key, qboolean down) {
 void CG_MouseEvent(int x, int y) {
 }
 #endif
-

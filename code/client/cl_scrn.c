@@ -23,6 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // cl_scrn.c -- master for refresh, status bar, console, chat, notify, etc
 
 #include "client.h"
+#ifdef IOS
+#include "cl_touch.h"
+#endif
 
 qboolean	scr_initialized;		// ready to draw
 
@@ -60,19 +63,17 @@ Adjusted for resolution and screen aspect ratio
 void SCR_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 	float	xscale;
 	float	yscale;
-
-#if 0
-		// adjust for wide screens
-		if ( cls.glconfig.vidWidth * 480 > cls.glconfig.vidHeight * 640 ) {
-			*x += 0.5 * ( cls.glconfig.vidWidth - ( cls.glconfig.vidHeight * 640 / 480 ) );
-		}
-#endif
+	float	xbias;
 
 	// scale for screen sizes
-	xscale = cls.glconfig.vidWidth / 640.0;
 	yscale = cls.glconfig.vidHeight / 480.0;
+	xscale = yscale;
+	xbias = 0.5f * ( cls.glconfig.vidWidth - 640.0f * xscale );
+	if ( xbias < 0.0f ) {
+		xbias = 0.0f;
+	}
 	if ( x ) {
-		*x *= xscale;
+		*x = *x * xscale + xbias;
 	}
 	if ( y ) {
 		*y *= yscale;
@@ -622,6 +623,10 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 		VM_Call( uivm, UI_REFRESH, cls.realtime );
 	}
 
+#ifdef IOS
+	IN_TouchDraw();
+#endif
+
 	// console draws next
 	Con_DrawConsole ();
 
@@ -674,4 +679,3 @@ void SCR_UpdateScreen( void ) {
 
 	recursive = 0;
 }
-

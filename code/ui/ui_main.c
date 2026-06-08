@@ -7259,4 +7259,3 @@ static void UI_StartServerRefresh(qboolean full)
 		}
 	}
 }
-

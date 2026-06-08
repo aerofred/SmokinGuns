@@ -71,6 +71,7 @@ rm -rf "${APP}"
 mkdir -p "${APP}"
 
 cp "${SCRIPT_DIR}/Info.plist" "${APP}/Info.plist"
+cp "${SCRIPT_DIR}/LaunchScreen.storyboard" "${APP}/LaunchScreen.storyboard"
 "${SCRIPT_DIR}/copy_game_data.sh" "${APP}"
 
 cp "${BIN}" "${APP}/SGClient"

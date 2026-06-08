@@ -25,6 +25,7 @@ typedef enum
 void IN_TouchInit( void );
 void IN_TouchShutdown( void );
 void IN_TouchFrame( void );
+void IN_TouchDraw( void );
 void IN_TouchSyncLayout( int width, int height, float scale );
 void IN_TouchFinger( long long fingerId, float x, float y, qboolean down, qboolean motion );
 void IN_TouchMouse( int x, int y, qboolean down, qboolean motion );
