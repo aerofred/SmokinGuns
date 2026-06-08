@@ -55,6 +55,7 @@ qboolean SNDDMA_Init( void )
 	SDL_AudioSpec desired;
 	SDL_AudioSpec obtained;
 	int samples;
+	int allowedChanges;
 
 	if( snd_inited )
 		return qtrue;
@@ -68,8 +69,14 @@ qboolean SNDDMA_Init( void )
 		s_sdlMixSamps = Cvar_Get( "s_sdlMixSamps", "0", CVAR_ARCHIVE );
 	}
 
+	SDL_SetHint( SDL_HINT_AUDIODRIVER, "coreaudio" );
+	SDL_SetHint( SDL_HINT_AUDIO_CATEGORY, "playback" );
+
 	if( SDL_InitSubSystem( SDL_INIT_AUDIO ) < 0 )
+	{
+		Com_Printf( "SDL_InitSubSystem(SDL_INIT_AUDIO) failed: %s\n", SDL_GetError() );
 		return qfalse;
+	}
 
 	memset( &desired, 0, sizeof( desired ) );
 	desired.freq = s_sdlSpeed->integer > 0 ? s_sdlSpeed->integer : 22050;
@@ -77,8 +84,9 @@ qboolean SNDDMA_Init( void )
 	desired.channels = s_sdlChannels->integer > 0 ? s_sdlChannels->integer : 2;
 	desired.samples = s_sdlDevSamps->integer > 0 ? s_sdlDevSamps->integer : 1024;
 	desired.callback = SNDDMA_AudioCallback;
+	allowedChanges = SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_CHANNELS_CHANGE | SDL_AUDIO_ALLOW_SAMPLES_CHANGE;
 
-	audioDevice = SDL_OpenAudioDevice( NULL, 0, &desired, &obtained, 0 );
+	audioDevice = SDL_OpenAudioDevice( NULL, 0, &desired, &obtained, allowedChanges );
 	if( !audioDevice )
 	{
 		Com_Printf( "SDL_OpenAudioDevice failed: %s\n", SDL_GetError() );
@@ -86,7 +94,14 @@ qboolean SNDDMA_Init( void )
 		return qfalse;
 	}
 
-	samples = s_sdlMixSamps->integer > 0 ? s_sdlMixSamps->integer : 32768;
+	samples = s_sdlMixSamps->integer > 0 ? s_sdlMixSamps->integer : ( obtained.samples * obtained.channels ) * 10;
+	if( samples & ( samples - 1 ) )
+	{
+		int powerOfTwo = 1;
+		while( powerOfTwo < samples )
+			powerOfTwo <<= 1;
+		samples = powerOfTwo;
+	}
 	dma.samplebits = obtained.format & 0xFF;
 	dma.channels = obtained.channels;
 	dma.speed = obtained.freq;
@@ -100,6 +115,12 @@ qboolean SNDDMA_Init( void )
 	SDL_PauseAudioDevice( audioDevice, 0 );
 	Com_Printf( "SDL2 audio: %d Hz, %d bits, %d channels\n", dma.speed, dma.samplebits, dma.channels );
 	return qtrue;
+}
+
+void SNDDMA_Activate( void )
+{
+	if( snd_inited && audioDevice )
+		SDL_PauseAudioDevice( audioDevice, 0 );
 }
 
 int SNDDMA_GetDMAPos( void )
@@ -123,6 +144,8 @@ void SNDDMA_Shutdown( void )
 
 void SNDDMA_Submit( void )
 {
+	if( audioDevice )
+		SDL_UnlockAudioDevice( audioDevice );
 }
 
 void SNDDMA_BeginPainting( void )
@@ -133,6 +156,4 @@ void SNDDMA_BeginPainting( void )
 
 void SNDDMA_EndPainting( void )
 {
-	if( audioDevice )
-		SDL_UnlockAudioDevice( audioDevice );
 }
