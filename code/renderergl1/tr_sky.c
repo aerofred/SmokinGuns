@@ -369,6 +369,31 @@ static void DrawSkySide( struct image_s *image, const int mins[2], const int max
 
 	for ( t = mins[1]+HALF_SKY_SUBDIVISIONS; t < maxs[1]+HALF_SKY_SUBDIVISIONS; t++ )
 	{
+#ifdef USE_GLES_FIXED
+		vec3_t verts[(SKY_SUBDIVISIONS + 1) * 2];
+		float texCoords[(SKY_SUBDIVISIONS + 1) * 2][2];
+		int numVerts = 0;
+
+		for ( s = mins[0]+HALF_SKY_SUBDIVISIONS; s <= maxs[0]+HALF_SKY_SUBDIVISIONS; s++ )
+		{
+			VectorCopy( s_skyPoints[t][s], verts[numVerts] );
+			texCoords[numVerts][0] = s_skyTexCoords[t][s][0];
+			texCoords[numVerts][1] = s_skyTexCoords[t][s][1];
+			numVerts++;
+
+			VectorCopy( s_skyPoints[t+1][s], verts[numVerts] );
+			texCoords[numVerts][0] = s_skyTexCoords[t+1][s][0];
+			texCoords[numVerts][1] = s_skyTexCoords[t+1][s][1];
+			numVerts++;
+		}
+
+		qglDisableClientState( GL_COLOR_ARRAY );
+		qglEnableClientState( GL_VERTEX_ARRAY );
+		qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
+		qglVertexPointer( 3, GL_FLOAT, 0, verts );
+		qglTexCoordPointer( 2, GL_FLOAT, 0, texCoords );
+		qglDrawArrays( GL_TRIANGLE_STRIP, 0, numVerts );
+#else
 		qglBegin( GL_TRIANGLE_STRIP );
 
 		for ( s = mins[0]+HALF_SKY_SUBDIVISIONS; s <= maxs[0]+HALF_SKY_SUBDIVISIONS; s++ )
@@ -381,6 +406,7 @@ static void DrawSkySide( struct image_s *image, const int mins[2], const int max
 		}
 
 		qglEnd();
+#endif
 	}
 }
 
@@ -791,4 +817,3 @@ void RB_StageIteratorSky( void ) {
 	// note that sky was drawn so we will draw a sun later
 	backEnd.skyRenderedThisView = qtrue;
 }
-
