@@ -14,6 +14,20 @@ typedef struct iosTouchOverlayState_s
 	float moveX, moveY, moveRadius;
 	float fireX, fireY, fireRadius;
 	qboolean fireActive;
+	float altFireX, altFireY, altFireRadius;
+	qboolean altFireActive;
+	float jumpX, jumpY, jumpRadius;
+	qboolean jumpActive;
+	float crouchX, crouchY, crouchRadius;
+	qboolean crouchActive;
+	float useX, useY, useRadius;
+	qboolean useActive;
+	float reloadX, reloadY, reloadRadius;
+	qboolean reloadActive;
+	float openX, openY, openRadius;
+	qboolean openActive;
+	float buyX, buyY, buyRadius;
+	qboolean buyActive;
 	float weaponX, weaponY, weaponRadius;
 	float menuX, menuY, menuRadius;
 } iosTouchOverlayState_t;
@@ -186,7 +200,7 @@ static CGRect IOS_RectFromPixelCenter( float x, float y, float radius, CGFloat f
 	CGContextSetStrokeColorWithColor( ctx, [UIColor colorWithWhite:1.0 alpha:0.50].CGColor );
 
 	r = IOS_RectFromPixelCenter( iosTouchOverlay.moveX, iosTouchOverlay.moveY, iosTouchOverlay.moveRadius, 1.0 );
-	CGContextStrokeRect( ctx, r );
+	CGContextStrokeEllipseInRect( ctx, r );
 	CGContextSetFillColorWithColor( ctx, [UIColor colorWithRed:0.24 green:0.58 blue:0.88 alpha:alpha * 0.72].CGColor );
 	CGContextFillRect( ctx, CGRectMake( CGRectGetMidX( r ) - CGRectGetWidth( r ) * 0.05,
 		CGRectGetMinY( r ) + CGRectGetHeight( r ) * 0.02,
@@ -202,9 +216,9 @@ static CGRect IOS_RectFromPixelCenter( float x, float y, float radius, CGFloat f
 			CGFloat a = active ? MIN( alpha + 0.22, 0.92 ) : alpha;
 			[color colorWithAlphaComponent:a];
 			CGContextSetFillColorWithColor( ctx, [color colorWithAlphaComponent:a].CGColor );
-			CGContextFillRect( ctx, buttonRect );
+			CGContextFillEllipseInRect( ctx, buttonRect );
 			CGContextSetStrokeColorWithColor( ctx, [UIColor colorWithWhite:1.0 alpha:(active ? 0.72 : 0.42)].CGColor );
-			CGContextStrokeRect( ctx, borderRect );
+			CGContextStrokeEllipseInRect( ctx, borderRect );
 
 			NSDictionary *attrs = @{
 				NSFontAttributeName: [UIFont boldSystemFontOfSize:MAX( 9.0, radius / scale * 0.18 )],
@@ -217,6 +231,20 @@ static CGRect IOS_RectFromPixelCenter( float x, float y, float radius, CGFloat f
 
 	drawButton( iosTouchOverlay.fireX, iosTouchOverlay.fireY, iosTouchOverlay.fireRadius,
 		@"FIRE", [UIColor colorWithRed:0.88 green:0.25 blue:0.18 alpha:1.0], iosTouchOverlay.fireActive );
+	drawButton( iosTouchOverlay.altFireX, iosTouchOverlay.altFireY, iosTouchOverlay.altFireRadius,
+		@"ALT", [UIColor colorWithRed:0.70 green:0.20 blue:0.86 alpha:1.0], iosTouchOverlay.altFireActive );
+	drawButton( iosTouchOverlay.jumpX, iosTouchOverlay.jumpY, iosTouchOverlay.jumpRadius,
+		@"JUMP", [UIColor colorWithRed:0.16 green:0.70 blue:0.42 alpha:1.0], iosTouchOverlay.jumpActive );
+	drawButton( iosTouchOverlay.crouchX, iosTouchOverlay.crouchY, iosTouchOverlay.crouchRadius,
+		@"CTRL", [UIColor colorWithRed:0.12 green:0.50 blue:0.74 alpha:1.0], iosTouchOverlay.crouchActive );
+	drawButton( iosTouchOverlay.useX, iosTouchOverlay.useY, iosTouchOverlay.useRadius,
+		@"USE", [UIColor colorWithRed:0.88 green:0.54 blue:0.16 alpha:1.0], iosTouchOverlay.useActive );
+	drawButton( iosTouchOverlay.reloadX, iosTouchOverlay.reloadY, iosTouchOverlay.reloadRadius,
+		@"RLD", [UIColor colorWithRed:0.86 green:0.66 blue:0.18 alpha:1.0], iosTouchOverlay.reloadActive );
+	drawButton( iosTouchOverlay.openX, iosTouchOverlay.openY, iosTouchOverlay.openRadius,
+		@"OPEN", [UIColor colorWithRed:0.76 green:0.46 blue:0.20 alpha:1.0], iosTouchOverlay.openActive );
+	drawButton( iosTouchOverlay.buyX, iosTouchOverlay.buyY, iosTouchOverlay.buyRadius,
+		@"BUY", [UIColor colorWithRed:0.18 green:0.62 blue:0.38 alpha:1.0], iosTouchOverlay.buyActive );
 	drawButton( iosTouchOverlay.weaponX, iosTouchOverlay.weaponY, iosTouchOverlay.weaponRadius,
 		@"WPN", [UIColor colorWithRed:0.90 green:0.72 blue:0.18 alpha:1.0], iosTouchOverlay.mode == 1 );
 	drawButton( iosTouchOverlay.menuX, iosTouchOverlay.menuY, iosTouchOverlay.menuRadius,
@@ -336,6 +364,13 @@ void IOS_Layer_SetGameOverlayVisible( qboolean visible )
 void IOS_Layer_UpdateTouchControls( qboolean visible, float opacity, int mode,
 	float moveX, float moveY, float moveRadius,
 	float fireX, float fireY, float fireRadius, qboolean fireActive,
+	float altFireX, float altFireY, float altFireRadius, qboolean altFireActive,
+	float jumpX, float jumpY, float jumpRadius, qboolean jumpActive,
+	float crouchX, float crouchY, float crouchRadius, qboolean crouchActive,
+	float useX, float useY, float useRadius, qboolean useActive,
+	float reloadX, float reloadY, float reloadRadius, qboolean reloadActive,
+	float openX, float openY, float openRadius, qboolean openActive,
+	float buyX, float buyY, float buyRadius, qboolean buyActive,
 	float weaponX, float weaponY, float weaponRadius,
 	float menuX, float menuY, float menuRadius )
 {
@@ -349,6 +384,34 @@ void IOS_Layer_UpdateTouchControls( qboolean visible, float opacity, int mode,
 	iosTouchOverlay.fireY = fireY;
 	iosTouchOverlay.fireRadius = fireRadius;
 	iosTouchOverlay.fireActive = fireActive;
+	iosTouchOverlay.altFireX = altFireX;
+	iosTouchOverlay.altFireY = altFireY;
+	iosTouchOverlay.altFireRadius = altFireRadius;
+	iosTouchOverlay.altFireActive = altFireActive;
+	iosTouchOverlay.jumpX = jumpX;
+	iosTouchOverlay.jumpY = jumpY;
+	iosTouchOverlay.jumpRadius = jumpRadius;
+	iosTouchOverlay.jumpActive = jumpActive;
+	iosTouchOverlay.crouchX = crouchX;
+	iosTouchOverlay.crouchY = crouchY;
+	iosTouchOverlay.crouchRadius = crouchRadius;
+	iosTouchOverlay.crouchActive = crouchActive;
+	iosTouchOverlay.useX = useX;
+	iosTouchOverlay.useY = useY;
+	iosTouchOverlay.useRadius = useRadius;
+	iosTouchOverlay.useActive = useActive;
+	iosTouchOverlay.reloadX = reloadX;
+	iosTouchOverlay.reloadY = reloadY;
+	iosTouchOverlay.reloadRadius = reloadRadius;
+	iosTouchOverlay.reloadActive = reloadActive;
+	iosTouchOverlay.openX = openX;
+	iosTouchOverlay.openY = openY;
+	iosTouchOverlay.openRadius = openRadius;
+	iosTouchOverlay.openActive = openActive;
+	iosTouchOverlay.buyX = buyX;
+	iosTouchOverlay.buyY = buyY;
+	iosTouchOverlay.buyRadius = buyRadius;
+	iosTouchOverlay.buyActive = buyActive;
 	iosTouchOverlay.weaponX = weaponX;
 	iosTouchOverlay.weaponY = weaponY;
 	iosTouchOverlay.weaponRadius = weaponRadius;
