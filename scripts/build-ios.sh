@@ -66,10 +66,7 @@ cp -R "$ROOT/baseq3" "$APP_DIR/baseq3"
 cp -R "$ROOT/ui" "$APP_DIR/ui"
 
 if [ -f "$ROOT/misc/smokinguns.png" ]; then
-	python3 "$ROOT/misc/ios/composite_app_icon.py" \
-		"$ROOT/misc/smokinguns.png" \
-		"$APP_DIR/AppIcon.png" \
-		1024
+	cp "$ROOT/misc/smokinguns.png" "$APP_DIR/AppIcon.png"
 fi
 if [ -f "$ROOT/misc/ios/LaunchScreen.storyboard" ]; then
 	cp "$ROOT/misc/ios/LaunchScreen.storyboard" "$APP_DIR/LaunchScreen.storyboard"

@@ -36,14 +36,6 @@ if [ -z "${MASTER}" ]; then
 	exit 1
 fi
 
-COMPOSITED="${WORK}/icon-wood-1024.png"
-if python3 -c 'import PIL' >/dev/null 2>&1; then
-	python3 "${SCRIPT_DIR}/composite_app_icon.py" "${MASTER}" "${COMPOSITED}" 1024
-else
-	echo "Pillow not available; generating plain app icon from ${ICNS}"
-	sips -z 1024 1024 "${MASTER}" --out "${COMPOSITED}" >/dev/null
-fi
-
 ICONSET="${WORK}/AppIcon.appiconset"
 mkdir -p "${ICONSET}"
 
@@ -63,7 +55,7 @@ for spec in \
 	"1024:Icon-1024.png"; do
 	size="${spec%%:*}"
 	out="${spec##*:}"
-	sips -z "${size}" "${size}" "${COMPOSITED}" --out "${ICONSET}/${out}" >/dev/null
+	sips -z "${size}" "${size}" "${MASTER}" --out "${ICONSET}/${out}" >/dev/null
 done
 
 cat > "${ICONSET}/Contents.json" <<'EOF'
@@ -112,4 +104,4 @@ fi
 
 cp "${ASSETS}/AppIcon.appiconset/Icon-1024.png" "${APP}/SplashIcon.png"
 
-echo "App icon generated from smokinguns.icns with wood texture background"
+echo "App icon generated from smokinguns.icns"
