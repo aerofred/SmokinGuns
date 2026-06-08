@@ -184,7 +184,6 @@ static CGRect IOS_RectFromPixelCenter( float x, float y, float radius, CGFloat f
 	CGContextRef ctx = UIGraphicsGetCurrentContext();
 	CGFloat scale = IOS_PointScale();
 	CGFloat alpha;
-	CGRect r;
 	(void)rect;
 
 	if( !ctx || !iosOverlayVisible || !iosTouchOverlay.visible )
@@ -197,17 +196,6 @@ static CGRect IOS_RectFromPixelCenter( float x, float y, float radius, CGFloat f
 		alpha = 0.85;
 
 	CGContextSetLineWidth( ctx, 7.0 );
-	CGContextSetStrokeColorWithColor( ctx, [UIColor colorWithWhite:1.0 alpha:0.50].CGColor );
-
-	r = IOS_RectFromPixelCenter( iosTouchOverlay.moveX, iosTouchOverlay.moveY, iosTouchOverlay.moveRadius, 1.0 );
-	CGContextStrokeEllipseInRect( ctx, r );
-	CGContextSetFillColorWithColor( ctx, [UIColor colorWithRed:0.24 green:0.58 blue:0.88 alpha:alpha * 0.72].CGColor );
-	CGContextFillRect( ctx, CGRectMake( CGRectGetMidX( r ) - CGRectGetWidth( r ) * 0.05,
-		CGRectGetMinY( r ) + CGRectGetHeight( r ) * 0.02,
-		CGRectGetWidth( r ) * 0.10, CGRectGetHeight( r ) * 0.96 ) );
-	CGContextFillRect( ctx, CGRectMake( CGRectGetMinX( r ) + CGRectGetWidth( r ) * 0.02,
-		CGRectGetMidY( r ) - CGRectGetHeight( r ) * 0.05,
-		CGRectGetWidth( r ) * 0.96, CGRectGetHeight( r ) * 0.10 ) );
 
 	void (^drawButton)( float, float, float, NSString *, UIColor *, BOOL ) =
 		^( float x, float y, float radius, NSString *label, UIColor *color, BOOL active ) {
@@ -229,14 +217,10 @@ static CGRect IOS_RectFromPixelCenter( float x, float y, float radius, CGFloat f
 				(CGFloat)y / scale - sz.height * 0.5 ) withAttributes:attrs];
 		};
 
-	drawButton( iosTouchOverlay.fireX, iosTouchOverlay.fireY, iosTouchOverlay.fireRadius,
-		@"FIRE", [UIColor colorWithRed:0.88 green:0.25 blue:0.18 alpha:1.0], iosTouchOverlay.fireActive );
-	drawButton( iosTouchOverlay.altFireX, iosTouchOverlay.altFireY, iosTouchOverlay.altFireRadius,
-		@"ALT", [UIColor colorWithRed:0.70 green:0.20 blue:0.86 alpha:1.0], iosTouchOverlay.altFireActive );
 	drawButton( iosTouchOverlay.jumpX, iosTouchOverlay.jumpY, iosTouchOverlay.jumpRadius,
 		@"JUMP", [UIColor colorWithRed:0.16 green:0.70 blue:0.42 alpha:1.0], iosTouchOverlay.jumpActive );
 	drawButton( iosTouchOverlay.crouchX, iosTouchOverlay.crouchY, iosTouchOverlay.crouchRadius,
-		@"CTRL", [UIColor colorWithRed:0.12 green:0.50 blue:0.74 alpha:1.0], iosTouchOverlay.crouchActive );
+		@"CRCH", [UIColor colorWithRed:0.12 green:0.50 blue:0.74 alpha:1.0], iosTouchOverlay.crouchActive );
 	drawButton( iosTouchOverlay.useX, iosTouchOverlay.useY, iosTouchOverlay.useRadius,
 		@"USE", [UIColor colorWithRed:0.88 green:0.54 blue:0.16 alpha:1.0], iosTouchOverlay.useActive );
 	drawButton( iosTouchOverlay.reloadX, iosTouchOverlay.reloadY, iosTouchOverlay.reloadRadius,
