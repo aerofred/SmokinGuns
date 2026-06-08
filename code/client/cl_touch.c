@@ -196,7 +196,7 @@ static touchZone_t Touch_Classify( float x, float y )
 		return TOUCH_ZONE_WEAPONS;
 	if( Touch_PointNear( x, y, Touch_EdgeX( in_touchMenuX ), Touch_EdgeY( in_touchMenuY ), button ) )
 		return TOUCH_ZONE_MENU;
-	if( x > touchWidth * 0.45f )
+	if( x > 0 )
 		return TOUCH_ZONE_LOOK;
 	return TOUCH_ZONE_NONE;
 }
@@ -213,16 +213,24 @@ static void Touch_SetHeldCommand( qboolean *state, const char *downCommand, cons
 	}
 }
 
+static void Touch_SetHeldKey( qboolean *state, int key, qboolean down )
+{
+	if( *state == down )
+		return;
+	*state = down;
+	Touch_Key( key, down );
+}
+
 static void Touch_StopZone( touchZone_t zone )
 {
 	if( zone == TOUCH_ZONE_FIRE )
-		Touch_SetHeldCommand( &touchFireDown, "+attack", "-attack", qfalse );
+		Touch_SetHeldKey( &touchFireDown, K_MOUSE1, qfalse );
 	else if( zone == TOUCH_ZONE_ALT_FIRE )
 		Touch_SetHeldCommand( &touchAltFireDown, "+button6", "-button6", qfalse );
 	else if( zone == TOUCH_ZONE_JUMP )
 		Touch_SetHeldCommand( &touchJumpDown, "+moveup", "-moveup", qfalse );
 	else if( zone == TOUCH_ZONE_CROUCH )
-		Touch_SetHeldCommand( &touchCrouchDown, "+button3", "-button3", qfalse );
+		Touch_SetHeldCommand( &touchCrouchDown, "+movedown", "-movedown", qfalse );
 	else if( zone == TOUCH_ZONE_USE )
 		Touch_SetHeldCommand( &touchUseDown, "+button2", "-button2", qfalse );
 	else if( zone == TOUCH_ZONE_RELOAD )
@@ -314,10 +322,10 @@ void IN_TouchShutdown( void )
 			Touch_StopZone( fingers[i].zone );
 	}
 	Com_Memset( fingers, 0, sizeof( fingers ) );
-	Touch_SetHeldCommand( &touchFireDown, "+attack", "-attack", qfalse );
+	Touch_SetHeldKey( &touchFireDown, K_MOUSE1, qfalse );
 	Touch_SetHeldCommand( &touchAltFireDown, "+button6", "-button6", qfalse );
 	Touch_SetHeldCommand( &touchJumpDown, "+moveup", "-moveup", qfalse );
-	Touch_SetHeldCommand( &touchCrouchDown, "+button3", "-button3", qfalse );
+	Touch_SetHeldCommand( &touchCrouchDown, "+movedown", "-movedown", qfalse );
 	Touch_SetHeldCommand( &touchUseDown, "+button2", "-button2", qfalse );
 	Touch_SetHeldCommand( &touchReloadDown, "+button5", "-button5", qfalse );
 	Touch_SetHeldCommand( &touchOpenDown, "+button7", "-button7", qfalse );
@@ -523,13 +531,13 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 			finger->zone = Touch_Classify( x, y );
 
 			if( finger->zone == TOUCH_ZONE_FIRE )
-				Touch_SetHeldCommand( &touchFireDown, "+attack", "-attack", qtrue );
+				Touch_SetHeldKey( &touchFireDown, K_MOUSE1, qtrue );
 			else if( finger->zone == TOUCH_ZONE_ALT_FIRE )
 				Touch_SetHeldCommand( &touchAltFireDown, "+button6", "-button6", qtrue );
 			else if( finger->zone == TOUCH_ZONE_JUMP )
 				Touch_SetHeldCommand( &touchJumpDown, "+moveup", "-moveup", qtrue );
 			else if( finger->zone == TOUCH_ZONE_CROUCH )
-				Touch_SetHeldCommand( &touchCrouchDown, "+button3", "-button3", qtrue );
+				Touch_SetHeldCommand( &touchCrouchDown, "+movedown", "-movedown", qtrue );
 			else if( finger->zone == TOUCH_ZONE_USE )
 				Touch_SetHeldCommand( &touchUseDown, "+button2", "-button2", qtrue );
 			else if( finger->zone == TOUCH_ZONE_RELOAD )
