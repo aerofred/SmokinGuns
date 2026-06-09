@@ -2,6 +2,7 @@
 
 #include "../client/client.h"
 #include "../client/cl_touch.h"
+#include "../ios/ios_layer.h"
 #include "../sys/sys_local.h"
 
 static qboolean inputInited = qfalse;
@@ -61,10 +62,16 @@ static void IN_ProcessEvent( SDL_Event *event )
 			break;
 		case SDL_APP_WILLENTERBACKGROUND:
 		case SDL_APP_DIDENTERBACKGROUND:
+			IOS_Layer_SetActive( qfalse );
+			Cvar_Set( "com_minimized", "1" );
+			Cvar_Set( "com_unfocused", "1" );
 			Cvar_Set( "s_muted", "1" );
 			break;
 		case SDL_APP_WILLENTERFOREGROUND:
 		case SDL_APP_DIDENTERFOREGROUND:
+			IOS_Layer_SetActive( qtrue );
+			Cvar_Set( "com_minimized", "0" );
+			Cvar_Set( "com_unfocused", "0" );
 			Cvar_Set( "s_muted", "0" );
 			break;
 		case SDL_QUIT:

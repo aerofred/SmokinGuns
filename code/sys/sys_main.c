@@ -46,6 +46,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../qcommon/q_shared.h"
 #include "../qcommon/qcommon.h"
+#ifdef IOS
+#include "../ios/ios_layer.h"
+#endif
 
 #ifdef SMOKINGUNS
 #include "../qcommon/sdk_shared.h"
@@ -790,6 +793,13 @@ int main( int argc, char **argv )
 	while( 1 )
 	{
 		IN_Frame( );
+#ifdef IOS
+		if( !IOS_Layer_IsActive() )
+		{
+			Sys_Sleep( 100 );
+			continue;
+		}
+#endif
 		Com_Frame( );
 	}
 

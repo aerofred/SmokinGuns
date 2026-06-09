@@ -109,7 +109,7 @@
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "i386 x86_64";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.smokinguns.ios;
 				PRODUCT_NAME = SmokinGuns;
 				SDKROOT = iphoneos;
@@ -126,7 +126,7 @@
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "i386 x86_64";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.smokinguns.ios;
 				PRODUCT_NAME = SmokinGuns;
 				SDKROOT = iphoneos;

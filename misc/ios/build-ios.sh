@@ -43,10 +43,12 @@ else
 fi
 
 echo "=== Building iOS client ==="
+rm -rf "${IOS_BUILD}/release-ios-arm64"
 make -f Makefile -f Makefile.local \
 	PLATFORM=ios \
 	ARCH=arm64 \
 	BUILD_DIR="${IOS_BUILD}" \
+	BUILD_SDK_DIFF=0 \
 	BUILD_CLIENT=1 BUILD_SERVER=0 \
 	BUILD_GAME_SO=0 BUILD_GAME_QVM=0 \
 	BUILD_RENDERER_OPENGL2=0 \

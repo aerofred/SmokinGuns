@@ -5,6 +5,8 @@
 
 static iosLayout_t iosLayout = { 0, 0, 0, 0, 0, 0, 1 };
 static qboolean iosOverlayVisible = qtrue;
+static volatile qboolean iosAppActive = qtrue;
+static qboolean iosLifecycleObserversInstalled = qfalse;
 
 typedef struct iosTouchOverlayState_s
 {
@@ -30,6 +32,11 @@ typedef struct iosTouchOverlayState_s
 	qboolean buyActive;
 	float weaponX, weaponY, weaponRadius;
 	float menuX, menuY, menuRadius;
+	float configX, configY, configRadius;
+	qboolean configActive;
+	qboolean editMode;
+	float sliderX, sliderY, sliderW;
+	float sliderValue;
 } iosTouchOverlayState_t;
 
 static iosTouchOverlayState_t iosTouchOverlay;
@@ -64,6 +71,50 @@ static void IOS_HideSystemChrome( void )
 			if( [window.rootViewController respondsToSelector:@selector(setNeedsUpdateOfHomeIndicatorAutoHidden)] )
 				[window.rootViewController setNeedsUpdateOfHomeIndicatorAutoHidden];
 		}
+	} );
+}
+
+void IOS_Layer_SetActive( qboolean active )
+{
+	iosAppActive = active;
+}
+
+qboolean IOS_Layer_IsActive( void )
+{
+	return iosAppActive;
+}
+
+static void IOS_InstallLifecycleObservers( void )
+{
+	if( iosLifecycleObserversInstalled )
+		return;
+
+	iosLifecycleObserversInstalled = qtrue;
+	IOS_OnMainAsync( ^{
+		NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+		NSOperationQueue *queue = NSOperationQueue.mainQueue;
+
+		[center addObserverForName:UIApplicationWillResignActiveNotification object:nil queue:queue
+			usingBlock:^( NSNotification *note ) {
+				(void)note;
+				IOS_Layer_SetActive( qfalse );
+			}];
+		[center addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil queue:queue
+			usingBlock:^( NSNotification *note ) {
+				(void)note;
+				IOS_Layer_SetActive( qfalse );
+			}];
+		[center addObserverForName:UIApplicationWillEnterForegroundNotification object:nil queue:queue
+			usingBlock:^( NSNotification *note ) {
+				(void)note;
+				IOS_Layer_SetActive( qtrue );
+			}];
+		[center addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:queue
+			usingBlock:^( NSNotification *note ) {
+				(void)note;
+				IOS_Layer_SetActive( qtrue );
+				IOS_HideSystemChrome();
+			}];
 	} );
 }
 
@@ -233,6 +284,29 @@ static CGRect IOS_RectFromPixelCenter( float x, float y, float radius, CGFloat f
 		@"WPN", [UIColor colorWithRed:0.90 green:0.72 blue:0.18 alpha:1.0], iosTouchOverlay.mode == 1 );
 	drawButton( iosTouchOverlay.menuX, iosTouchOverlay.menuY, iosTouchOverlay.menuRadius,
 		@"MENU", [UIColor colorWithWhite:0.66 alpha:1.0], NO );
+	drawButton( iosTouchOverlay.configX, iosTouchOverlay.configY, iosTouchOverlay.configRadius,
+		@"CFG", [UIColor colorWithRed:0.55 green:0.62 blue:0.70 alpha:1.0],
+		iosTouchOverlay.configActive || iosTouchOverlay.editMode );
+
+	if( iosTouchOverlay.editMode )
+	{
+		CGFloat sx = (CGFloat)iosTouchOverlay.sliderX / scale;
+		CGFloat sy = (CGFloat)iosTouchOverlay.sliderY / scale;
+		CGFloat sw = (CGFloat)iosTouchOverlay.sliderW / scale;
+		CGFloat knob = sx + sw * iosTouchOverlay.sliderValue;
+		CGRect rail = CGRectMake( sx, sy - 3.0, sw, 6.0 );
+		CGRect fill = CGRectMake( sx, sy - 3.0, MAX( 0.0, knob - sx ), 6.0 );
+		CGRect knobRect = CGRectMake( knob - 16.0, sy - 16.0, 32.0, 32.0 );
+
+		CGContextSetFillColorWithColor( ctx, [UIColor colorWithWhite:1.0 alpha:0.20].CGColor );
+		CGContextFillRect( ctx, rail );
+		CGContextSetFillColorWithColor( ctx, [UIColor colorWithRed:0.30 green:0.72 blue:0.86 alpha:0.62].CGColor );
+		CGContextFillRect( ctx, fill );
+		CGContextSetFillColorWithColor( ctx, [UIColor colorWithWhite:1.0 alpha:0.72].CGColor );
+		CGContextFillEllipseInRect( ctx, knobRect );
+		CGContextSetStrokeColorWithColor( ctx, [UIColor colorWithWhite:0.0 alpha:0.35].CGColor );
+		CGContextStrokeEllipseInRect( ctx, knobRect );
+	}
 }
 
 - (void)forwardTouches:(NSSet<UITouch *> *)touches down:(BOOL)down motion:(BOOL)motion
@@ -293,6 +367,7 @@ void IOS_Layer_Init( void )
 	iosLayout.width = (float)size.width;
 	iosLayout.height = (float)size.height;
 	iosLayout.scale = (float)screen.scale;
+	IOS_InstallLifecycleObservers();
 	IOS_EnsureTouchOverlay();
 	IOS_HideSystemChrome();
 	IOS_UpdateSafeArea();
@@ -356,7 +431,10 @@ void IOS_Layer_UpdateTouchControls( qboolean visible, float opacity, int mode,
 	float openX, float openY, float openRadius, qboolean openActive,
 	float buyX, float buyY, float buyRadius, qboolean buyActive,
 	float weaponX, float weaponY, float weaponRadius,
-	float menuX, float menuY, float menuRadius )
+	float menuX, float menuY, float menuRadius,
+	float configX, float configY, float configRadius, qboolean configActive,
+	qboolean editMode, float sliderX, float sliderY, float sliderW,
+	float sliderValue )
 {
 	iosTouchOverlay.visible = visible;
 	iosTouchOverlay.opacity = opacity;
@@ -402,6 +480,19 @@ void IOS_Layer_UpdateTouchControls( qboolean visible, float opacity, int mode,
 	iosTouchOverlay.menuX = menuX;
 	iosTouchOverlay.menuY = menuY;
 	iosTouchOverlay.menuRadius = menuRadius;
+	iosTouchOverlay.configX = configX;
+	iosTouchOverlay.configY = configY;
+	iosTouchOverlay.configRadius = configRadius;
+	iosTouchOverlay.configActive = configActive;
+	iosTouchOverlay.editMode = editMode;
+	iosTouchOverlay.sliderX = sliderX;
+	iosTouchOverlay.sliderY = sliderY;
+	iosTouchOverlay.sliderW = sliderW;
+	if( sliderValue < 0.0f )
+		sliderValue = 0.0f;
+	if( sliderValue > 1.0f )
+		sliderValue = 1.0f;
+	iosTouchOverlay.sliderValue = sliderValue;
 
 	IOS_EnsureTouchOverlay();
 	IOS_OnMainAsync( ^{

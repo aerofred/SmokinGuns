@@ -39,9 +39,12 @@ if [ ! -f "$SDL_LIB" ]; then
 	cp "$LIB_FOUND" "$SDL_LIB"
 fi
 
+rm -rf "$BUILD_DIR/release-ios-arm64"
+
 make -C "$ROOT" \
 	PLATFORM=ios \
 	ARCH=arm64 \
+	BUILD_SDK_DIFF=0 \
 	BUILD_SERVER=0 \
 	BUILD_CLIENT=1 \
 	BUILD_GAME_SO=0 \
@@ -85,8 +88,11 @@ cat > "$APP_DIR/Info.plist" <<'PLIST'
 	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 	<key>CFBundleName</key><string>SmokinGuns</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleSupportedPlatforms</key><array><string>iPhoneOS</string></array>
 	<key>CFBundleShortVersionString</key><string>1.2</string>
 	<key>CFBundleVersion</key><string>1</string>
+	<key>DTPlatformName</key><string>iphoneos</string>
+	<key>MinimumOSVersion</key><string>12.0</string>
 	<key>LSRequiresIPhoneOS</key><true/>
 	<key>UILaunchStoryboardName</key><string>LaunchScreen</string>
 	<key>UIRequiresFullScreen</key><true/>
@@ -94,6 +100,7 @@ cat > "$APP_DIR/Info.plist" <<'PLIST'
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Smokin' Guns uses the local network for LAN multiplayer games.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key><true/>
+	<key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
 	<key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
 	<key>UIStatusBarHidden</key><true/>
 	<key>UISupportedInterfaceOrientations</key>
