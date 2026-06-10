@@ -186,6 +186,11 @@ int		NET_StringToAdr ( const char *s, netadr_t *a, netadrtype_t family);
 qboolean	NET_GetLoopPacket (netsrc_t sock, netadr_t *net_from, msg_t *net_message);
 void		NET_JoinMulticast6(void);
 void		NET_LeaveMulticast6(void);
+int		NET_RefreshLocalAddresses( void );
+const char *NET_GetLocalIPv4String( char *buf, int buflen );
+void		NET_SendPacketToLocalSubnets( netsrc_t sock, int length, const void *data, int port );
+void		NET_SendUnicastLANProbe( netsrc_t sock, int length, const void *data, int basePort );
+void		NET_BroadcastLANPacket( netsrc_t sock, int length, const void *data, int basePort );
 void		NET_Sleep(int msec);
 
 

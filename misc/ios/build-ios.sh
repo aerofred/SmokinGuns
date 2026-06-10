@@ -31,16 +31,12 @@ HOST_BUILD="${ROOT_DIR}/build/release-darwin-${HOST_ARCH}"
 QVM_DIR="${HOST_BUILD}/smokinguns/vm"
 
 echo "=== Building QVMs (host: darwin-${HOST_ARCH}) ==="
-if [ -f "${QVM_DIR}/qagame.qvm" ] && [ -f "${QVM_DIR}/cgame.qvm" ] && [ -f "${QVM_DIR}/ui.qvm" ]; then
-	echo "QVMs already present in ${QVM_DIR}, skipping host build."
-else
-	make -f Makefile -f Makefile.local \
-		BUILD_CLIENT=0 BUILD_SERVER=0 BUILD_GAME_SO=0 BUILD_GAME_QVM=1 \
-		PLATFORM=darwin ARCH="${HOST_ARCH}" \
-		B="${HOST_BUILD}" \
-		-j"$(sysctl -n hw.ncpu 2>/dev/null || echo 4)" \
-		targets
-fi
+make -f Makefile -f Makefile.local \
+	BUILD_CLIENT=0 BUILD_SERVER=0 BUILD_GAME_SO=0 BUILD_GAME_QVM=1 \
+	PLATFORM=darwin ARCH="${HOST_ARCH}" \
+	B="${HOST_BUILD}" \
+	-j"$(sysctl -n hw.ncpu 2>/dev/null || echo 4)" \
+	build/release-darwin-${HOST_ARCH}/smokinguns/vm/ui.qvm
 
 echo "=== Building iOS client ==="
 rm -rf "${IOS_BUILD}/release-ios-arm64"

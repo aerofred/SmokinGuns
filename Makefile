@@ -1692,7 +1692,8 @@ ifeq ($(PLATFORM),ios)
     $(B)/client/ios_loading.o \
     $(B)/client/ios_touch_settings.o \
     $(B)/client/ios_gamepad.o \
-    $(B)/client/ios_gamepad_look.o
+    $(B)/client/ios_gamepad_look.o \
+    $(B)/client/ios_numpad.o
 endif
 
 ifeq ($(PLATFORM),mingw32)

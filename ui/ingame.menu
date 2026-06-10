@@ -382,7 +382,7 @@ itemdef
 	forecolor 1 1 1 1
 	backcolor 1 1 1 1 
 	visible 1
-	action { uiScript ServerInfo; open ingame_about }
+	action { exec ui_set_localip ; uiScript ServerInfo ; open ingame_about }
 	mouseEnter { show about_alt }
       	mouseExit { hide about_alt }
 	}

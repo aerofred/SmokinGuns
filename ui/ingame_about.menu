@@ -216,6 +216,23 @@ itemDef {
 
 itemDef {
 	name about
+	rect 0 195 256 20
+	type 4
+      	style 0	
+	text "Local IP:"
+	cvar ui_sv_localip
+	maxPaintChars 24
+      	textalign ITEM_ALIGN_RIGHT		
+      	textalignx 128
+      	textaligny 12    
+	textscale .25     
+      	forecolor 1 .75 0 1
+      	visible 1
+	decoration
+	}
+
+itemDef {
+	name about
 	rect 10 215 256 20
 	type 11
       	style 0	

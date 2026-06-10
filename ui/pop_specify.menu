@@ -12,7 +12,9 @@ menuDef {
     	style 1    	
 	border 1
 	popup
-	onESC { close specify_popmenu ; open joinserver }
+	onOpen { exec ios_numpad_show }
+	onClose { exec ios_numpad_hide }
+	onESC { exec ios_numpad_hide ; close specify_popmenu ; open joinserver }
 
 
 
@@ -73,6 +75,7 @@ itemDef {
 	forecolor 1 1 1 1
 	backcolor 0 0 0 .5
 	visible 1
+	action { exec ios_numpad_show }
 	mouseenter { setitemcolor addressEntry backcolor 0 0 0 .75 }
 	mouseexit { setitemcolor addressEntry backcolor 0 0 0 .25 }
 	}

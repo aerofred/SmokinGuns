@@ -13,7 +13,7 @@ fi
 
 mkdir -p "${DEST}"
 
-for dir in baseq3 smokinguns ui; do
+for dir in baseq3 smokinguns; do
 	src="${ROOT_DIR}/${dir}"
 	if [ ! -d "${src}" ]; then
 		echo "error: missing ${src}" >&2
@@ -24,22 +24,23 @@ for dir in baseq3 smokinguns ui; do
 	cp -R "${src}" "${DEST}/"
 done
 
-VM_SRC=""
-for candidate in \
-	"${ROOT_DIR}/build/ios-port/release-ios-arm64/smokinguns/vm" \
-	"${ROOT_DIR}/build/release-ios-arm64/smokinguns/vm" \
-	"${ROOT_DIR}/build/release-darwin-arm64/smokinguns/vm" \
-	"${ROOT_DIR}/build/release-darwin-x86/smokinguns/vm" \
-	"${ROOT_DIR}/build/release-darwin-x86_64/smokinguns/vm"; do
-	if [ -d "${candidate}" ]; then
-		VM_SRC="${candidate}"
-		break
+# The engine only loads menus from the gamedir search paths (baseq3 /
+# smokinguns) and their .pk3s. A top-level "ui" folder in the bundle is NOT a
+# search path, so menu edits placed there are ignored. Loose files inside the
+# gamedir override .pk3 contents, so install our modified menus directly under
+# smokinguns/ui/ to take precedence over the stock paks (sg_pak0.pk3 ...).
+#
+# Only override the menus we actually changed, so we don't clobber the
+# iOS-customized system menus that ship inside the newer paks (sg_pak9.pk3).
+echo "Installing modified UI menus -> ${DEST}/smokinguns/ui/"
+mkdir -p "${DEST}/smokinguns/ui"
+for menu in pop_specify.menu ingame.menu ingame_about.menu; do
+	src="${ROOT_DIR}/ui/${menu}"
+	if [ ! -f "${src}" ]; then
+		echo "error: missing ${src}" >&2
+		exit 1
 	fi
+	cp -f "${src}" "${DEST}/smokinguns/ui/${menu}"
 done
-
-if [ -n "${VM_SRC}" ]; then
-	mkdir -p "${DEST}/smokinguns/vm"
-	cp -f "${VM_SRC}"/*.qvm "${VM_SRC}"/*.jts "${DEST}/smokinguns/vm/" 2>/dev/null || true
-fi
 
 echo "Game data installed in ${DEST}"

@@ -285,9 +285,14 @@ static void SV_Startup( void ) {
 	}
 
 	Cvar_Set( "sv_running", "1" );
-	
+
+	// Refresh local interfaces before joining multicast and LAN beacons.
+	NET_RefreshLocalAddresses();
+
 	// Join the ipv6 multicast group now that a map is running so clients can scan for us on the local network.
 	NET_JoinMulticast6();
+
+	svs.nextLanBroadcastTime = 0;
 }
 
 

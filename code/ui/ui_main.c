@@ -4379,6 +4379,7 @@ static void UI_RunMenuScript(char **args) {
 			trap_Cvar_Set("ui_sv_bot_minplayers", Info_ValueForKey( serverinfo, "bot_minplayers" ));
 			trap_Cvar_Set("ui_sv_version", Info_ValueForKey( serverinfo, "version" ));
 			trap_Cvar_Set("ui_sv_sg_version", Info_ValueForKey( serverinfo, "sg_version" ));
+			trap_Cmd_ExecuteText( EXEC_NOW, "ui_set_localip\n" );
 		}
 #endif
 		else {

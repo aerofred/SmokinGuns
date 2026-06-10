@@ -590,44 +590,12 @@ static void SVC_Status( netadr_t from ) {
 
 /*
 ================
-SVC_Info
-
-Responds with a short info message that should be enough to determine
-if a user is interested in a server to do a full status
+SV_BuildInfoString
 ================
 */
-void SVC_Info( netadr_t from ) {
+static void SV_BuildInfoString( char *infostring, const char *challenge ) {
 	int		i, count, humans;
 	char	*gamedir;
-	char	infostring[MAX_INFO_STRING];
-
-	// ignore if we are in single player
-	if ( Cvar_VariableValue( "g_gametype" ) == GT_SINGLE_PLAYER || Cvar_VariableValue("ui_singlePlayerActive")) {
-		return;
-	}
-
-	// Prevent using getinfo as an amplifier
-	if ( SVC_RateLimitAddress( from, 10, 1000 ) ) {
-		Com_DPrintf( "SVC_Info: rate limit from %s exceeded, dropping request\n",
-			NET_AdrToString( from ) );
-		return;
-	}
-
-	// Allow getinfo to be DoSed relatively easily, but prevent
-	// excess outbound bandwidth usage when being flooded inbound
-	if ( SVC_RateLimit( &outboundLeakyBucket, 10, 100 ) ) {
-		Com_DPrintf( "SVC_Info: rate limit exceeded, dropping request\n" );
-		return;
-	}
-
-	/*
-	 * Check whether Cmd_Argv(1) has a sane length. This was not done in the original Quake3 version which led
-	 * to the Infostring bug discovered by Luigi Auriemma. See http://aluigi.altervista.org/ for the advisory.
-	 */
-
-	// A maximum challenge length of 128 should be more than plenty.
-	if(strlen(Cmd_Argv(1)) > 128)
-		return;
 
 	// don't count privateclients
 	count = humans = 0;
@@ -644,7 +612,7 @@ void SVC_Info( netadr_t from ) {
 
 	// echo back the parameter to status. so servers can use it as a challenge
 	// to prevent timed spoofed reply packets that add ghost servers
-	Info_SetValueForKey( infostring, "challenge", Cmd_Argv(1) );
+	Info_SetValueForKey( infostring, "challenge", challenge );
 
 	Info_SetValueForKey( infostring, "gamename", com_gamename->string );
 
@@ -681,7 +649,89 @@ void SVC_Info( netadr_t from ) {
 	if( *gamedir ) {
 		Info_SetValueForKey( infostring, "game", gamedir );
 	}
+}
 
+/*
+================
+SV_LANBroadcast
+
+Periodically announce this server on the local network so clients can
+discover it without relying on global broadcast alone.
+================
+*/
+#define LAN_BROADCAST_MSEC 2000
+
+static void SV_LANBroadcast( void ) {
+	char infostring[MAX_INFO_STRING];
+	char message[MAX_INFO_STRING + 32];
+	int port;
+
+	if ( Cvar_VariableValue( "g_gametype" ) == GT_SINGLE_PLAYER || Cvar_VariableValue("ui_singlePlayerActive")) {
+		return;
+	}
+
+	if ( sv.state != SS_GAME ) {
+		return;
+	}
+
+	if ( svs.time < svs.nextLanBroadcastTime ) {
+		return;
+	}
+
+	svs.nextLanBroadcastTime = svs.time + LAN_BROADCAST_MSEC;
+
+	NET_RefreshLocalAddresses();
+	SV_BuildInfoString( infostring, "lan" );
+	Com_sprintf( message, sizeof( message ), "\xff\xff\xff\xffinfoResponse\n%s", infostring );
+
+	port = Cvar_VariableIntegerValue( "net_port" );
+	if ( !port ) {
+		port = PORT_SERVER;
+	}
+
+	NET_BroadcastLANPacket( NS_SERVER, strlen( message ), message, port );
+}
+
+/*
+================
+SVC_Info
+
+Responds with a short info message that should be enough to determine
+if a user is interested in a server to do a full status
+================
+*/
+void SVC_Info( netadr_t from ) {
+	char	infostring[MAX_INFO_STRING];
+
+	// ignore if we are in single player
+	if ( Cvar_VariableValue( "g_gametype" ) == GT_SINGLE_PLAYER || Cvar_VariableValue("ui_singlePlayerActive")) {
+		return;
+	}
+
+	// Prevent using getinfo as an amplifier
+	if ( SVC_RateLimitAddress( from, 10, 1000 ) ) {
+		Com_DPrintf( "SVC_Info: rate limit from %s exceeded, dropping request\n",
+			NET_AdrToString( from ) );
+		return;
+	}
+
+	// Allow getinfo to be DoSed relatively easily, but prevent
+	// excess outbound bandwidth usage when being flooded inbound
+	if ( SVC_RateLimit( &outboundLeakyBucket, 10, 100 ) ) {
+		Com_DPrintf( "SVC_Info: rate limit exceeded, dropping request\n" );
+		return;
+	}
+
+	/*
+	 * Check whether Cmd_Argv(1) has a sane length. This was not done in the original Quake3 version which led
+	 * to the Infostring bug discovered by Luigi Auriemma. See http://aluigi.altervista.org/ for the advisory.
+	 */
+
+	// A maximum challenge length of 128 should be more than plenty.
+	if(strlen(Cmd_Argv(1)) > 128)
+		return;
+
+	SV_BuildInfoString( infostring, Cmd_Argv(1) );
 	NET_OutOfBandPrint( NS_SERVER, from, "infoResponse\n%s", infostring );
 }
 
@@ -1157,6 +1207,9 @@ void SV_Frame( int msec ) {
 
 	// send messages back to the clients
 	SV_SendClientMessages();
+
+	// announce on the local network for LAN browser discovery
+	SV_LANBroadcast();
 
 	// send a heartbeat to the master if needed
 	SV_MasterHeartbeat(HEARTBEAT_FOR_MASTER);
