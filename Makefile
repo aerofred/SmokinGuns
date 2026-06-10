@@ -1691,7 +1691,8 @@ ifeq ($(PLATFORM),ios)
     $(B)/client/ios_layer.o \
     $(B)/client/ios_loading.o \
     $(B)/client/ios_touch_settings.o \
-    $(B)/client/ios_gamepad.o
+    $(B)/client/ios_gamepad.o \
+    $(B)/client/ios_gamepad_look.o
 endif
 
 ifeq ($(PLATFORM),mingw32)
@@ -2707,6 +2708,9 @@ $(B)/client/%.o: $(SYSDIR)/%.m
 	$(DO_CC)
 
 $(B)/client/%.o: $(IOSDIR)/%.m
+	$(DO_CC)
+
+$(B)/client/%.o: $(IOSDIR)/%.c
 	$(DO_CC)
 
 $(B)/client/%.o: $(SYSDIR)/%.rc

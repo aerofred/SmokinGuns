@@ -10,6 +10,7 @@
 #include "../qcommon/qcommon.h"
 #include "../sys/sys_local.h"
 #include "../ios/ios_gamepad.h"
+#include "../ios/ios_gamepad_look.h"
 
 static SDL_Joystick *stick = NULL;
 static SDL_GameController *gamepad = NULL;
@@ -232,10 +233,34 @@ static void IN_IosPadAxisDigitalKeys( Sint16 raw, float threshold, int negKey, i
 	*dirState = dir;
 }
 
+static void IN_IosReleaseRightStickDigitalKeys( void )
+{
+	static const int negKeys[2] = {
+		K_PAD0_RIGHTSTICK_LEFT, K_PAD0_RIGHTSTICK_UP
+	};
+	static const int posKeys[2] = {
+		K_PAD0_RIGHTSTICK_RIGHT, K_PAD0_RIGHTSTICK_DOWN
+	};
+	int i;
+
+	for ( i = 0; i < 2; i++ ) {
+		if ( iosPadStickDir[i + 2] < 0 ) {
+			Com_QueueEvent( 0, SE_KEY, negKeys[i], qfalse, 0, NULL );
+		}
+		if ( iosPadStickDir[i + 2] > 0 ) {
+			Com_QueueEvent( 0, SE_KEY, posKeys[i], qfalse, 0, NULL );
+		}
+		iosPadStickDir[i + 2] = 0;
+	}
+}
+
 static void IN_IosPadMoveDigitalSticks( void )
 {
 	float moveThresh = 0.18f;
-	float lookThresh = 0.24f;
+	float rx;
+	float ry;
+	Sint16 rawRx;
+	Sint16 rawRy;
 
 	if ( in_joystickThreshold && in_joystickThreshold->value > 0.01f ) {
 		moveThresh = in_joystickThreshold->value;
@@ -250,12 +275,13 @@ static void IN_IosPadMoveDigitalSticks( void )
 	IN_IosPadAxisDigitalKeys(
 		IN_IosGetPadAxis( SDL_CONTROLLER_AXIS_LEFTY ),
 		moveThresh, K_PAD0_LEFTSTICK_UP, K_PAD0_LEFTSTICK_DOWN, &iosPadStickDir[1] );
-	IN_IosPadAxisDigitalKeys(
-		IN_IosGetPadAxis( SDL_CONTROLLER_AXIS_RIGHTX ),
-		lookThresh, K_PAD0_RIGHTSTICK_LEFT, K_PAD0_RIGHTSTICK_RIGHT, &iosPadStickDir[2] );
-	IN_IosPadAxisDigitalKeys(
-		IN_IosGetPadAxis( SDL_CONTROLLER_AXIS_RIGHTY ),
-		lookThresh, K_PAD0_RIGHTSTICK_UP, K_PAD0_RIGHTSTICK_DOWN, &iosPadStickDir[3] );
+
+	IN_IosReleaseRightStickDigitalKeys();
+	rawRx = IN_IosGetPadAxis( SDL_CONTROLLER_AXIS_RIGHTX );
+	rawRy = IN_IosGetPadAxis( SDL_CONTROLLER_AXIS_RIGHTY );
+	rx = (float)rawRx / 32767.0f;
+	ry = (float)rawRy / 32767.0f;
+	IOS_Gamepad_LookFromStick( rx, ry );
 
 	{
 		static int ltDown, rtDown;
@@ -448,6 +474,7 @@ void IN_IosGamepadInit( void )
 	in_joystickThreshold = Cvar_Get( "joy_threshold", "0.15", CVAR_ARCHIVE );
 	in_joystickNo = Cvar_Get( "in_joystickNo", "0", CVAR_ARCHIVE );
 	in_joystickUseAnalog = Cvar_Get( "in_joystickUseAnalog", "0", CVAR_ARCHIVE );
+	IOS_Gamepad_LookInit();
 }
 
 void IN_IosGamepadShutdown( void )
