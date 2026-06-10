@@ -44,6 +44,7 @@ void IOS_Layer_UpdateTouchControls( qboolean visible, float opacity, int mode,
 	qboolean editMode, float sliderX, float sliderY, float sliderW,
 	float sliderValue );
 void IOS_Layer_OpenTouchSettings( void );
+void IOS_Layer_SetTouchGamepadMode( qboolean gamepadMode );
 void IOS_Layer_AttachToWindow( void );
 
 #endif

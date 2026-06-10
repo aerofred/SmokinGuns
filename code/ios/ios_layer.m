@@ -1,4 +1,5 @@
 #include "ios_layer.h"
+#include "ios_gamepad.h"
 #include "../client/cl_touch.h"
 
 #import <UIKit/UIKit.h>
@@ -35,6 +36,7 @@ typedef struct iosTouchOverlayState_s
 	float configX, configY, configRadius;
 	qboolean configActive;
 	qboolean editMode;
+	qboolean gamepadMode;
 	float sliderX, sliderY, sliderW;
 	float sliderValue;
 } iosTouchOverlayState_t;
@@ -267,6 +269,14 @@ static CGRect IOS_RectFromPixelCenter( float x, float y, float radius, CGFloat f
 			[label drawAtPoint:CGPointMake( (CGFloat)x / scale - sz.width * 0.5,
 				(CGFloat)y / scale - sz.height * 0.5 ) withAttributes:attrs];
 		};
+
+	if( iosTouchOverlay.gamepadMode )
+	{
+		drawButton( iosTouchOverlay.configX, iosTouchOverlay.configY, iosTouchOverlay.configRadius,
+			@"PAD", [UIColor colorWithRed:0.55 green:0.62 blue:0.70 alpha:1.0],
+			iosTouchOverlay.configActive );
+		return;
+	}
 
 	drawButton( iosTouchOverlay.jumpX, iosTouchOverlay.jumpY, iosTouchOverlay.jumpRadius,
 		@"JUMP", [UIColor colorWithRed:0.16 green:0.70 blue:0.42 alpha:1.0], iosTouchOverlay.jumpActive );
@@ -504,7 +514,15 @@ void IOS_Layer_UpdateTouchControls( qboolean visible, float opacity, int mode,
 
 void IOS_Layer_OpenTouchSettings( void )
 {
-	// The first playable port keeps settings as cvars; this hook is for a later UIKit editor.
+	IOS_Gamepad_PresentSettings();
+}
+
+void IOS_Layer_SetTouchGamepadMode( qboolean gamepadMode )
+{
+	iosTouchOverlay.gamepadMode = gamepadMode;
+	IOS_OnMainAsync( ^{
+		[iosTouchView setNeedsDisplay];
+	} );
 }
 
 void IOS_Layer_AttachToWindow( void )

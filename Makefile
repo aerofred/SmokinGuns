@@ -528,7 +528,7 @@ ifeq ($(PLATFORM),ios)
 
   BASE_CFLAGS = -Wall -Wimplicit -Wstrict-prototypes -fno-strict-aliasing \
     -fno-common -pipe -DIOS -DNO_VM_COMPILED -DUSE_SDL2=1 -DUSE_GLES_FIXED=1 \
-    -arch arm64 -isysroot $(IOS_SDK) \
+    -fobjc-arc -arch arm64 -isysroot $(IOS_SDK) \
     -miphoneos-version-min=12.0 -I$(IOS_SDL_ROOT)/include
   CLIENT_CFLAGS += -DUSE_SDL2 -DUSE_GLES_FIXED=1
   OPTIMIZEVM=
@@ -1685,11 +1685,13 @@ ifeq ($(PLATFORM),ios)
   Q3OBJ := $(filter-out $(B)/client/sdl_input.o $(B)/client/sdl_snd.o $(B)/client/qal.o $(B)/client/snd_openal.o $(B)/client/cl_curl.o,$(Q3OBJ))
   Q3OBJ += \
     $(B)/client/sdl_input_ios.o \
+    $(B)/client/sdl_input_ios_gamepad.o \
     $(B)/client/sdl_snd_ios.o \
     $(B)/client/cl_touch.o \
     $(B)/client/ios_layer.o \
     $(B)/client/ios_loading.o \
-    $(B)/client/ios_touch_settings.o
+    $(B)/client/ios_touch_settings.o \
+    $(B)/client/ios_gamepad.o
 endif
 
 ifeq ($(PLATFORM),mingw32)

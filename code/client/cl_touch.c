@@ -1,6 +1,9 @@
 #include "client.h"
 #include "cl_touch.h"
 #include "../ios/ios_layer.h"
+#ifdef IOS
+#include "../ios/ios_gamepad.h"
+#endif
 
 #define TOUCH_MAX_FINGERS 10
 #define TOUCH_KEY_BASE 240
@@ -404,6 +407,8 @@ static void Touch_StopAllGameplay( void )
 	touchPendingAltFireUpFrames = 0;
 }
 
+static float Touch_TapThreshold( void );
+
 static void Touch_ToggleEditMode( void )
 {
 	int i;
@@ -421,6 +426,86 @@ static void Touch_ToggleEditMode( void )
 	if( !touchEditMode )
 		Cbuf_AddText( "writeconfig\n" );
 }
+
+#ifdef IOS
+static qboolean Touch_GamepadOverridesGameplay( void )
+{
+	if( !IOS_Gamepad_IsActive() )
+		return qfalse;
+	if( IN_TouchInUIMode() || clc.state != CA_ACTIVE )
+		return qfalse;
+	return qtrue;
+}
+
+static void Touch_ApplyGamepadMode( qboolean gamepadMode )
+{
+	static qboolean lastGamepadMode = qfalse;
+	int i;
+
+	if( gamepadMode == lastGamepadMode )
+		return;
+
+	lastGamepadMode = gamepadMode;
+	IOS_Layer_SetTouchGamepadMode( gamepadMode );
+
+	if( !gamepadMode )
+		return;
+
+	Touch_StopAllGameplay();
+	touchEditMode = qfalse;
+	touchMode = TOUCH_MODE_COMBAT;
+	IN_TouchUIReset();
+	for( i = 0; i < TOUCH_MAX_FINGERS; i++ )
+		fingers[i].active = qfalse;
+}
+
+static void Touch_HandleGamepadConfigFinger( long long fingerId, float x, float y, qboolean down, qboolean motion )
+{
+	touchFinger_t *finger;
+
+	if( down )
+	{
+		finger = Touch_FindFinger( fingerId );
+		if( !finger )
+		{
+			touchZone_t zone = Touch_Classify( x, y );
+
+			if( zone != TOUCH_ZONE_CONFIG )
+				return;
+
+			finger = Touch_AllocFinger( fingerId );
+			if( !finger )
+				return;
+			finger->startX = x;
+			finger->startY = y;
+			finger->x = x;
+			finger->y = y;
+			finger->zone = TOUCH_ZONE_CONFIG;
+			finger->tapCandidate = qtrue;
+		}
+		else if( motion )
+		{
+			float tapDx = x - finger->startX;
+			float tapDy = y - finger->startY;
+			float tapThreshold = Touch_TapThreshold();
+
+			if( tapDx * tapDx + tapDy * tapDy > tapThreshold * tapThreshold )
+				finger->tapCandidate = qfalse;
+			finger->x = x;
+			finger->y = y;
+		}
+		return;
+	}
+
+	finger = Touch_FindFinger( fingerId );
+	if( !finger )
+		return;
+
+	if( finger->zone == TOUCH_ZONE_CONFIG && finger->tapCandidate )
+		IOS_Gamepad_PresentSettings();
+	finger->active = qfalse;
+}
+#endif
 
 static void Touch_TapCommand( const char *command )
 {
@@ -701,6 +786,15 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 	if( !in_touch || !in_touch->integer )
 		return;
 
+#ifdef IOS
+	Touch_ApplyGamepadMode( Touch_GamepadOverridesGameplay() );
+	if( Touch_GamepadOverridesGameplay() )
+	{
+		Touch_HandleGamepadConfigFinger( fingerId, x, y, down, motion );
+		return;
+	}
+#endif
+
 	if( IN_TouchInUIMode() )
 	{
 		if( down )
@@ -904,6 +998,26 @@ void IN_TouchFrame( void )
 		Com_QueueEvent( 0, SE_KEY, K_MOUSE1, qfalse, 0, NULL );
 	if( !IN_TouchInUIMode() && ( touchUIPointerFinger >= 0 || touchUIRightFinger >= 0 || touchUIRightDown ) )
 		IN_TouchUIReset();
+#ifdef IOS
+	if( !Touch_GamepadOverridesGameplay() )
+	{
+		int i;
+		qboolean moveEngaged = qfalse;
+		for( i = 0; i < TOUCH_MAX_FINGERS; i++ )
+		{
+			if( fingers[i].active && fingers[i].zone == TOUCH_ZONE_MOVE )
+			{
+				moveEngaged = qtrue;
+				break;
+			}
+		}
+		IOS_Gamepad_SetOnScreenMoveEngaged( moveEngaged );
+	}
+	else
+	{
+		IOS_Gamepad_SetOnScreenMoveEngaged( qfalse );
+	}
+#endif
 	IOS_Layer_Tick();
 	(void)in_touchMoveSensitivity;
 	(void)in_touchLookX;
@@ -1003,6 +1117,7 @@ void IN_TouchDraw( void )
 
 	if( !in_touch || !in_touch->integer )
 	{
+		IOS_Layer_SetTouchGamepadMode( qfalse );
 		IOS_Layer_UpdateTouchControls( qfalse, 0.0f, touchMode,
 			0, 0, 0, 0, 0, 0, qfalse,
 			0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0,
@@ -1013,6 +1128,7 @@ void IN_TouchDraw( void )
 	}
 	if( IN_TouchInUIMode() || clc.state != CA_ACTIVE )
 	{
+		IOS_Layer_SetTouchGamepadMode( qfalse );
 		IOS_Layer_UpdateTouchControls( qfalse, 0.0f, touchMode,
 			0, 0, 0, 0, 0, 0, qfalse,
 			0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0,
@@ -1021,6 +1137,33 @@ void IN_TouchDraw( void )
 			0, 0, 0, qfalse, qfalse, 0, 0, 0, 0 );
 		return;
 	}
+
+#ifdef IOS
+	Touch_ApplyGamepadMode( Touch_GamepadOverridesGameplay() );
+#endif
+
+#ifdef IOS
+	if( Touch_GamepadOverridesGameplay() )
+	{
+		float button = in_touchBtnSize->value * Touch_ControlBase();
+		float gx = Touch_EdgeX( in_touchConfigX );
+		float gy = Touch_EdgeY( in_touchConfigY );
+
+		if( button < 48.0f )
+			button = 48.0f;
+
+		IOS_Layer_SetTouchGamepadMode( qtrue );
+		IOS_Layer_UpdateTouchControls( qtrue, Touch_Opacity(), touchMode,
+			0, 0, 0, 0, 0, 0, qfalse,
+			0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0,
+			qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse,
+			0, 0, 0, 0, 0, 0,
+			gx, gy, button * 0.78f, Touch_ActiveFingerForZone( TOUCH_ZONE_CONFIG ) != NULL,
+			qfalse, 0, 0, 0, 0 );
+		return;
+	}
+	IOS_Layer_SetTouchGamepadMode( qfalse );
+#endif
 
 	stick = in_touchStickSize->value * Touch_ControlBase();
 	button = in_touchBtnSize->value * Touch_ControlBase();

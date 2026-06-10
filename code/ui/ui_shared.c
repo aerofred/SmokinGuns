@@ -2744,6 +2744,31 @@ void Menu_HandleKey(menuDef_t *menu, int key, qboolean down) {
 		case K_AUX14:
 		case K_AUX15:
 		case K_AUX16:
+		case K_PAD0_A:
+		case K_PAD0_B:
+		case K_PAD0_X:
+		case K_PAD0_Y:
+		case K_PAD0_BACK:
+		case K_PAD0_GUIDE:
+		case K_PAD0_START:
+		case K_PAD0_LEFTSTICK_CLICK:
+		case K_PAD0_RIGHTSTICK_CLICK:
+		case K_PAD0_LEFTSHOULDER:
+		case K_PAD0_RIGHTSHOULDER:
+		case K_PAD0_DPAD_UP:
+		case K_PAD0_DPAD_DOWN:
+		case K_PAD0_DPAD_LEFT:
+		case K_PAD0_DPAD_RIGHT:
+		case K_PAD0_LEFTSTICK_LEFT:
+		case K_PAD0_LEFTSTICK_RIGHT:
+		case K_PAD0_LEFTSTICK_UP:
+		case K_PAD0_LEFTSTICK_DOWN:
+		case K_PAD0_RIGHTSTICK_LEFT:
+		case K_PAD0_RIGHTSTICK_RIGHT:
+		case K_PAD0_RIGHTSTICK_UP:
+		case K_PAD0_RIGHTSTICK_DOWN:
+		case K_PAD0_LEFTTRIGGER:
+		case K_PAD0_RIGHTTRIGGER:
 			break;
 		case K_KP_ENTER:
 		case K_ENTER:

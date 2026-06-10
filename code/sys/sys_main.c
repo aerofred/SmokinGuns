@@ -48,6 +48,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../qcommon/qcommon.h"
 #ifdef IOS
 #include "../ios/ios_layer.h"
+#include "../ios/ios_gamepad.h"
+
+static volatile qboolean sys_nativeGamepadActive = qfalse;
+
+void Sys_SetNativeGamepadActive( qboolean active )
+{
+	sys_nativeGamepadActive = active;
+}
+
+qboolean Sys_NativeGamepadActive( void )
+{
+	return sys_nativeGamepadActive;
+}
 #endif
 
 #ifdef SMOKINGUNS
@@ -766,12 +779,15 @@ int main( int argc, char **argv )
 	Q_strcat( commandLine, sizeof( commandLine ),
 		"+set r_mode -2 +set r_fullscreen 1 +set in_touch 1 "
 		"+set vm_cgame 2 +set vm_game 2 +set vm_ui 2 " );
+	IOS_Gamepad_ApplyLaunchConfig( commandLine, sizeof( commandLine ) );
 #endif
 
 	Com_Init( commandLine );
 #ifdef IOS
 	extern void IOS_Loading_End( void );
 	IOS_Loading_End();
+	IOS_Gamepad_PrepareAtLaunch();
+	IOS_Gamepad_Start();
 #endif
 	NET_Init( );
 

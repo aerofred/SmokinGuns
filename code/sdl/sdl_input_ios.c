@@ -3,9 +3,13 @@
 #include "../client/client.h"
 #include "../client/cl_touch.h"
 #include "../ios/ios_layer.h"
+#include "../ios/ios_gamepad.h"
+#include "../sdl/sdl_input_ios_gamepad.h"
 #include "../sys/sys_local.h"
 
 static qboolean inputInited = qfalse;
+
+static void IN_IosRegisterCommands( void );
 
 static int IN_TranslateControllerButton( int button )
 {
@@ -58,7 +62,10 @@ static void IN_ProcessEvent( SDL_Event *event )
 			break;
 		}
 		case SDL_CONTROLLERDEVICEADDED:
-			SDL_GameControllerOpen( event->cdevice.which );
+			IN_IosRefreshJoystick( qfalse );
+			break;
+		case SDL_CONTROLLERDEVICEREMOVED:
+			IN_IosCloseJoystick();
 			break;
 		case SDL_APP_WILLENTERBACKGROUND:
 		case SDL_APP_DIDENTERBACKGROUND:
@@ -66,6 +73,7 @@ static void IN_ProcessEvent( SDL_Event *event )
 			Cvar_Set( "com_minimized", "1" );
 			Cvar_Set( "com_unfocused", "1" );
 			Cvar_Set( "s_muted", "1" );
+			IOS_Gamepad_PauseForOverlay();
 			break;
 		case SDL_APP_WILLENTERFOREGROUND:
 		case SDL_APP_DIDENTERFOREGROUND:
@@ -87,6 +95,7 @@ void IN_Frame( void )
 	while( SDL_PollEvent( &event ) )
 		IN_ProcessEvent( &event );
 
+	IN_IosGamepadFrame();
 	IN_TouchFrame();
 }
 
@@ -101,8 +110,10 @@ void IN_Init( void )
 
 	SDL_SetHint( SDL_HINT_TOUCH_MOUSE_EVENTS, "0" );
 	SDL_SetHint( SDL_HINT_MOUSE_TOUCH_EVENTS, "0" );
-	SDL_InitSubSystem( SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER );
+	SDL_InitSubSystem( SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK );
 	IN_TouchInit();
+	IN_IosGamepadInit();
+	IN_IosRegisterCommands();
 	inputInited = qtrue;
 }
 
@@ -110,8 +121,9 @@ void IN_Shutdown( void )
 {
 	if( !inputInited )
 		return;
+	IN_IosGamepadShutdown();
 	IN_TouchShutdown();
-	SDL_QuitSubSystem( SDL_INIT_GAMECONTROLLER );
+	SDL_QuitSubSystem( SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK );
 	inputInited = qfalse;
 }
 
@@ -119,4 +131,14 @@ void IN_Restart( void )
 {
 	IN_Shutdown();
 	IN_Init();
+}
+
+static void IOS_GamepadSettings_f( void )
+{
+	IOS_Gamepad_PresentSettings();
+}
+
+static void IN_IosRegisterCommands( void )
+{
+	Cmd_AddCommand( "gamepad_config", IOS_GamepadSettings_f );
 }

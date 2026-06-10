@@ -62,6 +62,11 @@ void Sys_SigHandler( int signal ) __attribute__ ((noreturn));
 void Sys_ErrorDialog( const char *error );
 void Sys_AnsiColorPrint( const char *msg );
 
+#ifdef IOS
+void Sys_SetNativeGamepadActive( qboolean active );
+qboolean Sys_NativeGamepadActive( void );
+#endif
+
 int Sys_PID( void );
 qboolean Sys_PIDIsRunning( int pid );
 
