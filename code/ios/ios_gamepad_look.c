@@ -7,11 +7,13 @@
 
 static cvar_t *in_gamepadLookAccel = NULL;
 static cvar_t *in_gamepadLookScale = NULL;
+static cvar_t *in_gamepadLookInvert = NULL;
 
 void IOS_Gamepad_LookInit( void )
 {
 	in_gamepadLookAccel = Cvar_Get( "in_gamepadLookAccel", "2.0", CVAR_ARCHIVE );
 	in_gamepadLookScale = Cvar_Get( "in_gamepadLookScale", "12.0", CVAR_ARCHIVE );
+	in_gamepadLookInvert = Cvar_Get( "in_gamepadLookInvert", "0", CVAR_ARCHIVE );
 }
 
 static float IOS_Gamepad_ApplyLookCurve( float value, float deadzone, float exponent )
@@ -43,6 +45,7 @@ void IOS_Gamepad_LookFromStick( float stickX, float stickY )
 	float accel;
 	float sens;
 	float scale;
+	float ySign;
 	float curvedX;
 	float curvedY;
 	int dx;
@@ -79,8 +82,10 @@ void IOS_Gamepad_LookFromStick( float stickX, float stickY )
 		return;
 	}
 
+	ySign = ( in_gamepadLookInvert && in_gamepadLookInvert->integer ) ? 1.0f : -1.0f;
+
 	dx = (int)( curvedX * scale * sens );
-	dy = (int)( -curvedY * scale * sens );
+	dy = (int)( ySign * curvedY * scale * sens );
 
 	if ( dx == 0 && dy == 0 ) {
 		return;

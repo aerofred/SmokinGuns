@@ -13,6 +13,7 @@ static NSString * const kGamepadBindingsKey = @"sgGamepadBindings";
 static NSString * const kGamepadSensitivityKey = @"sgGamepadSensitivity";
 static NSString * const kGamepadDeadZoneKey = @"sgGamepadDeadZone";
 static NSString * const kGamepadLookAccelKey = @"sgGamepadLookAccel";
+static NSString * const kGamepadLookInvertKey = @"sgGamepadLookInvert";
 
 static NSDictionary<NSString *, NSString *> *IOS_GamepadDefaultBindings( void )
 {
@@ -71,6 +72,7 @@ static NSDictionary<NSString *, NSString *> *IOS_GamepadInputDisplayNames( void 
 @property (nonatomic) float sensitivity;
 @property (nonatomic) float deadZone;
 @property (nonatomic) float lookAcceleration;
+@property (nonatomic) BOOL lookInverted;
 + (instancetype)shared;
 - (NSString *)displayNameForInput:(NSString *)input;
 - (NSString *)inputForCommand:(NSString *)command;
@@ -130,6 +132,12 @@ static NSDictionary<NSString *, NSString *> *IOS_GamepadInputDisplayNames( void 
 		_lookAcceleration = (float)[defaults doubleForKey:kGamepadLookAccelKey];
 	}
 
+	if ( [defaults objectForKey:kGamepadLookInvertKey] == nil ) {
+		_lookInverted = NO;
+	} else {
+		_lookInverted = [defaults boolForKey:kGamepadLookInvertKey];
+	}
+
 	return self;
 }
 
@@ -171,6 +179,7 @@ static NSDictionary<NSString *, NSString *> *IOS_GamepadInputDisplayNames( void 
 	self.sensitivity = 10.0f;
 	self.deadZone = 0.15f;
 	self.lookAcceleration = 2.0f;
+	self.lookInverted = NO;
 	[self persist];
 }
 
@@ -180,13 +189,15 @@ static NSDictionary<NSString *, NSString *> *IOS_GamepadInputDisplayNames( void 
 	[defaults setDouble:self.sensitivity forKey:kGamepadSensitivityKey];
 	[defaults setDouble:self.deadZone forKey:kGamepadDeadZoneKey];
 	[defaults setDouble:self.lookAcceleration forKey:kGamepadLookAccelKey];
+	[defaults setBool:self.lookInverted forKey:kGamepadLookInvertKey];
 }
 
 - (void)appendLaunchCommandsTo:(NSMutableString *)buffer {
 	[buffer appendFormat:@"+set in_joystick 1 +set in_joystickUseAnalog 0 "
 		@"+set sensitivity %.1f +set joy_threshold %.2f "
-		@"+set in_gamepadLookAccel %.1f +set in_gamepadLookScale 12.0 ",
-		self.sensitivity, self.deadZone, self.lookAcceleration];
+		@"+set in_gamepadLookAccel %.1f +set in_gamepadLookScale 12.0 "
+		@"+set in_gamepadLookInvert %d ",
+		self.sensitivity, self.deadZone, self.lookAcceleration, self.lookInverted ? 1 : 0];
 
 	NSArray *keys = [[self.bindings allKeys] sortedArrayUsingSelector:@selector(compare:)];
 	for ( NSString *input in keys ) {
@@ -203,8 +214,9 @@ static NSDictionary<NSString *, NSString *> *IOS_GamepadInputDisplayNames( void 
 - (void)appendEngineCommandsTo:(NSMutableString *)buffer {
 	[buffer appendFormat:@"seta in_joystick 1; seta in_joystickUseAnalog 0; "
 		@"seta sensitivity %.1f; seta joy_threshold %.2f; "
-		@"seta in_gamepadLookAccel %.1f; seta in_gamepadLookScale 12.0; ",
-		self.sensitivity, self.deadZone, self.lookAcceleration];
+		@"seta in_gamepadLookAccel %.1f; seta in_gamepadLookScale 12.0; "
+		@"seta in_gamepadLookInvert %d; ",
+		self.sensitivity, self.deadZone, self.lookAcceleration, self.lookInverted ? 1 : 0];
 
 	NSArray *keys = [[self.bindings allKeys] sortedArrayUsingSelector:@selector(compare:)];
 	for ( NSString *input in keys ) {
@@ -386,21 +398,32 @@ static NSDictionary<NSString *, NSString *> *IOS_GamepadInputDisplayNames( void 
 	[self setPadKey:@"PAD0_LEFTTRIGGER" down:( pad.leftTrigger.value > threshold )];
 	[self setPadKey:@"PAD0_RIGHTTRIGGER" down:( pad.rightTrigger.value > threshold )];
 
-	float lx = [self applyDeadzone:pad.leftThumbstick.xAxis.value threshold:threshold];
-	float ly = [self applyDeadzone:pad.leftThumbstick.yAxis.value threshold:threshold];
-	[self updateStickKey:@"PAD0_LEFTSTICK_LEFT" down:( pad.leftThumbstick.xAxis.value < -threshold )];
-	[self updateStickKey:@"PAD0_LEFTSTICK_RIGHT" down:( pad.leftThumbstick.xAxis.value > threshold )];
+	BOOL dpadActive = pad.dpad.up.isPressed || pad.dpad.down.isPressed ||
+		pad.dpad.left.isPressed || pad.dpad.right.isPressed;
 
-	if ( fabsf( lx ) > 0.01f || fabsf( ly ) > 0.01f ) {
-		float sensitivity = MAX( 0.25f, CL_GetCvarFloat( "in_touchMoveSensitivity" ) );
-		int forward = (int)lrintf( ly * 127.0f * sensitivity );
-		forward = MAX( -127, MIN( 127, forward ) );
-		[self sendMoveAxesYaw:0 forward:forward];
-		_isManagingMoveAxes = YES;
-	} else {
+	if ( dpadActive ) {
+		[self updateStickKey:@"PAD0_LEFTSTICK_LEFT" down:NO];
+		[self updateStickKey:@"PAD0_LEFTSTICK_RIGHT" down:NO];
 		[self updateStickKey:@"PAD0_LEFTSTICK_UP" down:NO];
 		[self updateStickKey:@"PAD0_LEFTSTICK_DOWN" down:NO];
 		[self releaseMoveAxesIfManaging];
+	} else {
+		float lx = [self applyDeadzone:pad.leftThumbstick.xAxis.value threshold:threshold];
+		float ly = [self applyDeadzone:pad.leftThumbstick.yAxis.value threshold:threshold];
+		[self updateStickKey:@"PAD0_LEFTSTICK_LEFT" down:( pad.leftThumbstick.xAxis.value < -threshold )];
+		[self updateStickKey:@"PAD0_LEFTSTICK_RIGHT" down:( pad.leftThumbstick.xAxis.value > threshold )];
+
+		if ( fabsf( lx ) > 0.01f || fabsf( ly ) > 0.01f ) {
+			float sensitivity = MAX( 0.25f, CL_GetCvarFloat( "in_touchMoveSensitivity" ) );
+			int forward = (int)lrintf( ly * 127.0f * sensitivity );
+			forward = MAX( -127, MIN( 127, forward ) );
+			[self sendMoveAxesYaw:0 forward:forward];
+			_isManagingMoveAxes = YES;
+		} else {
+			[self updateStickKey:@"PAD0_LEFTSTICK_UP" down:NO];
+			[self updateStickKey:@"PAD0_LEFTSTICK_DOWN" down:NO];
+			[self releaseMoveAxesIfManaging];
+		}
 	}
 
 	[self updateStickKey:@"PAD0_RIGHTSTICK_UP" down:NO];
@@ -434,6 +457,7 @@ static NSDictionary<NSString *, NSString *> *IOS_GamepadInputDisplayNames( void 
 	_pollTimer = nil;
 	self.attachedController.extendedGamepad.valueChangedHandler = nil;
 	self.attachedController = nil;
+	Sys_SetNativeGamepadActive( qfalse );
 	[self releaseManagedKeys];
 	[self releaseMoveAxesIfManaging];
 }
@@ -458,6 +482,7 @@ static NSDictionary<NSString *, NSString *> *IOS_GamepadInputDisplayNames( void 
 		[weakSelf handleGamepad:pad];
 	};
 	[self startPollTimerForGamepad:gamepad];
+	Sys_SetNativeGamepadActive( qtrue );
 	[SGGamepadConfig.shared applyToRunningEngine];
 	[self handleGamepad:gamepad];
 	IOS_Gamepad_SetNativePresent( qtrue );
@@ -702,6 +727,10 @@ void IOS_Gamepad_ApplyLaunchConfig( char *commandLine, int commandLineSize )
 	if ( pad.buttonY.isPressed ) { [self capture:@"PAD0_Y"]; return; }
 	if ( pad.leftShoulder.isPressed ) { [self capture:@"PAD0_LEFTSHOULDER"]; return; }
 	if ( pad.rightShoulder.isPressed ) { [self capture:@"PAD0_RIGHTSHOULDER"]; return; }
+	if ( @available(iOS 12.1, *) ) {
+		if ( pad.leftThumbstickButton.isPressed ) { [self capture:@"PAD0_LEFTSTICK_CLICK"]; return; }
+		if ( pad.rightThumbstickButton.isPressed ) { [self capture:@"PAD0_RIGHTSTICK_CLICK"]; return; }
+	}
 	if ( pad.dpad.up.isPressed ) { [self capture:@"PAD0_DPAD_UP"]; return; }
 	if ( pad.dpad.down.isPressed ) { [self capture:@"PAD0_DPAD_DOWN"]; return; }
 	if ( pad.dpad.left.isPressed ) { [self capture:@"PAD0_DPAD_LEFT"]; return; }
@@ -809,6 +838,7 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 
 - (void)closeTapped {
 	[self cancelCapture];
+	[SGGamepadConfig.shared persist];
 	[self dismissViewControllerAnimated:YES completion:^{
 		[SGGamepadConfig.shared applyToRunningEngine];
 	}];
@@ -842,7 +872,7 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-	if ( section == 0 ) return 4;
+	if ( section == 0 ) return 5;
 	if ( section == 5 ) return 2;
 	NSString *sectionName = @[@"", @"Movement", @"Looking", @"Weapons", @"Misc"][section];
 	NSUInteger count = 0;
@@ -865,12 +895,25 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
 	if ( indexPath.section == 0 ) {
-		if ( indexPath.row == 3 ) {
+		if ( indexPath.row == 4 ) {
 			UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
 			cell.textLabel.text = @"Reset to Defaults";
 			cell.textLabel.textColor = [UIColor colorWithRed:0.86 green:0.30 blue:0.22 alpha:1.0];
 			cell.textLabel.textAlignment = NSTextAlignmentCenter;
 			cell.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.06];
+			return cell;
+		}
+		if ( indexPath.row == 3 ) {
+			UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
+			cell.selectionStyle = UITableViewCellSelectionStyleNone;
+			cell.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.06];
+			cell.textLabel.text = @"Invert Look (Y)";
+			cell.textLabel.textColor = UIColor.whiteColor;
+			UISwitch *toggle = [[UISwitch alloc] init];
+			toggle.on = SGGamepadConfig.shared.lookInverted;
+			toggle.onTintColor = [UIColor colorWithRed:0.88 green:0.54 blue:0.16 alpha:1.0];
+			[toggle addTarget:self action:@selector(invertLookChanged:) forControlEvents:UIControlEventValueChanged];
+			cell.accessoryView = toggle;
 			return cell;
 		}
 		UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
@@ -889,8 +932,10 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 		UILabel *value = [[UILabel alloc] init];
 		value.font = [UIFont monospacedDigitSystemFontOfSize:15 weight:UIFontWeightMedium];
 		value.textColor = [UIColor colorWithRed:0.90 green:0.72 blue:0.18 alpha:1.0];
+		value.tag = 3000 + (int)indexPath.row;
 		UISlider *slider = [[UISlider alloc] init];
 		slider.tag = (int)indexPath.row;
+		slider.continuous = YES;
 		slider.minimumTrackTintColor = [UIColor colorWithRed:0.88 green:0.54 blue:0.16 alpha:1.0];
 		if ( indexPath.row == 0 ) {
 			slider.minimumValue = 1;
@@ -909,6 +954,9 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 			value.text = [NSString stringWithFormat:@"%.1f", slider.value];
 		}
 		[slider addTarget:self action:@selector(sliderChanged:) forControlEvents:UIControlEventValueChanged];
+		[slider addTarget:self action:@selector(sliderFinished:) forControlEvents:UIControlEventTouchUpInside];
+		[slider addTarget:self action:@selector(sliderFinished:) forControlEvents:UIControlEventTouchUpOutside];
+		[slider addTarget:self action:@selector(sliderFinished:) forControlEvents:UIControlEventTouchCancel];
 
 		UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[
 			[[UIStackView alloc] initWithArrangedSubviews:@[title, value]],
@@ -960,6 +1008,31 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 	return cell;
 }
 
+- (void)invertLookChanged:(UISwitch *)sender {
+	SGGamepadConfig.shared.lookInverted = sender.isOn;
+	[SGGamepadConfig.shared persist];
+	Cvar_Set( "in_gamepadLookInvert", sender.isOn ? "1" : "0" );
+}
+
+- (UILabel *)valueLabelForSliderRow:(NSInteger)row {
+	UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:0]];
+	if ( !cell ) return nil;
+	return (UILabel *)[cell.contentView viewWithTag:3000 + (int)row];
+}
+
+- (void)updateValueLabelForSlider:(UISlider *)sender {
+	UILabel *valueLabel = [self valueLabelForSliderRow:sender.tag];
+	if ( !valueLabel ) return;
+
+	if ( sender.tag == 0 ) {
+		valueLabel.text = [NSString stringWithFormat:@"%.1f", sender.value];
+	} else if ( sender.tag == 1 ) {
+		valueLabel.text = [NSString stringWithFormat:@"%.2f", sender.value];
+	} else {
+		valueLabel.text = [NSString stringWithFormat:@"%.1f", sender.value];
+	}
+}
+
 - (void)sliderChanged:(UISlider *)sender {
 	if ( sender.tag == 0 ) {
 		SGGamepadConfig.shared.sensitivity = sender.value;
@@ -968,13 +1041,20 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 	} else {
 		SGGamepadConfig.shared.lookAcceleration = sender.value;
 	}
-	[self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:sender.tag inSection:0]]
-		withRowAnimation:UITableViewRowAnimationNone];
+	[self updateValueLabelForSlider:sender];
+}
+
+- (void)sliderFinished:(UISlider *)sender {
+	[self sliderChanged:sender];
+	[SGGamepadConfig.shared persist];
+	if ( sender.tag == 2 ) {
+		Cvar_Set( "in_gamepadLookAccel", [NSString stringWithFormat:@"%.1f", sender.value].UTF8String );
+	}
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
 	[tableView deselectRowAtIndexPath:indexPath animated:YES];
-	if ( indexPath.section == 0 && indexPath.row == 3 ) {
+	if ( indexPath.section == 0 && indexPath.row == 4 ) {
 		UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Reset Gamepad"
 			message:@"Restore default button and stick mappings?" preferredStyle:UIAlertControllerStyleAlert];
 		[alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];

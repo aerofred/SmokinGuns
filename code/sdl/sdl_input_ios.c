@@ -11,24 +11,6 @@ static qboolean inputInited = qfalse;
 
 static void IN_IosRegisterCommands( void );
 
-static int IN_TranslateControllerButton( int button )
-{
-	switch( button )
-	{
-		case SDL_CONTROLLER_BUTTON_A: return K_SPACE;
-		case SDL_CONTROLLER_BUTTON_B: return 'f';
-		case SDL_CONTROLLER_BUTTON_X: return 'r';
-		case SDL_CONTROLLER_BUTTON_Y: return K_ESCAPE;
-		case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: return K_MOUSE2;
-		case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: return K_MOUSE1;
-		case SDL_CONTROLLER_BUTTON_DPAD_UP: return K_UPARROW;
-		case SDL_CONTROLLER_BUTTON_DPAD_DOWN: return K_DOWNARROW;
-		case SDL_CONTROLLER_BUTTON_DPAD_LEFT: return K_LEFTARROW;
-		case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return K_RIGHTARROW;
-		default: return 0;
-	}
-}
-
 static void IN_ProcessEvent( SDL_Event *event )
 {
 	switch( event->type )
@@ -53,14 +35,17 @@ static void IN_ProcessEvent( SDL_Event *event )
 				Com_QueueEvent( 0, SE_KEY, event->button.button == SDL_BUTTON_RIGHT ? K_MOUSE2 : K_MOUSE1,
 					event->button.state == SDL_PRESSED, 0, NULL );
 			break;
+		case SDL_CONTROLLERAXISMOTION:
 		case SDL_CONTROLLERBUTTONDOWN:
 		case SDL_CONTROLLERBUTTONUP:
-		{
-			int key = IN_TranslateControllerButton( event->cbutton.button );
-			if( key )
-				Com_QueueEvent( 0, SE_KEY, key, event->type == SDL_CONTROLLERBUTTONDOWN, 0, NULL );
+			/* Axes et boutons gérés par IN_PadMove (binds PAD0_*). */
 			break;
-		}
+		case SDL_JOYAXISMOTION:
+		case SDL_JOYBUTTONDOWN:
+		case SDL_JOYBUTTONUP:
+		case SDL_JOYHATMOTION:
+			/* Joystick brut : IN_PadMove poll quand la manette SDL est ouverte. */
+			break;
 		case SDL_CONTROLLERDEVICEADDED:
 			IN_IosRefreshJoystick( qfalse );
 			break;

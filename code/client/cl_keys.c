@@ -1222,6 +1222,47 @@ void CL_ParseBinding( int key, qboolean down, unsigned time )
 	}
 }
 
+#ifdef IOS
+/*
+===================
+CL_MirrorAttackAsMouse1
+
+When the weapon wheel (cl_menu) or buy menu (KEYCATCH_CGAME) is open,
+mirror +attack binds to K_MOUSE1 so gamepad fire matches touch controls.
+===================
+*/
+static void CL_MirrorAttackAsMouse1( int key, qboolean down )
+{
+	char *binding;
+
+	if ( key == K_MOUSE1 )
+		return;
+
+	if ( !Cvar_VariableIntegerValue( "cl_menu" ) && !( Key_GetCatcher() & KEYCATCH_CGAME ) )
+		return;
+
+	binding = Key_GetBinding( key );
+	if ( !binding || binding[0] != '+' || Q_stricmp( binding, "+attack" ) )
+		return;
+
+	if ( keys[K_MOUSE1].down == down )
+		return;
+
+	if ( down ) {
+		keys[K_MOUSE1].down = qtrue;
+		keys[K_MOUSE1].repeats++;
+		if ( keys[K_MOUSE1].repeats == 1 )
+			anykeydown++;
+	} else {
+		keys[K_MOUSE1].repeats = 0;
+		keys[K_MOUSE1].down = qfalse;
+		anykeydown--;
+		if ( anykeydown < 0 )
+			anykeydown = 0;
+	}
+}
+#endif
+
 /*
 ===================
 CL_KeyDownEvent
@@ -1312,6 +1353,10 @@ void CL_KeyDownEvent( int key, unsigned time )
 	} else if ( clc.state == CA_DISCONNECTED ) {
 		Console_Key( key );
 	}
+
+#ifdef IOS
+	CL_MirrorAttackAsMouse1( key, qtrue );
+#endif
 }
 
 /*
@@ -1349,6 +1394,10 @@ void CL_KeyUpEvent( int key, unsigned time )
 	} else if ( Key_GetCatcher( ) & KEYCATCH_CGAME && cgvm ) {
 		VM_Call( cgvm, CG_KEY_EVENT, key, qfalse );
 	}
+
+#ifdef IOS
+	CL_MirrorAttackAsMouse1( key, qfalse );
+#endif
 }
 
 /*

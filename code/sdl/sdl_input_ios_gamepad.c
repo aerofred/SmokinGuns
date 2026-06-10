@@ -254,6 +254,14 @@ static void IN_IosReleaseRightStickDigitalKeys( void )
 	}
 }
 
+static qboolean IN_IosPadDpadActive( void )
+{
+	return stick_state.buttons[SDL_CONTROLLER_BUTTON_DPAD_UP] ||
+		stick_state.buttons[SDL_CONTROLLER_BUTTON_DPAD_DOWN] ||
+		stick_state.buttons[SDL_CONTROLLER_BUTTON_DPAD_LEFT] ||
+		stick_state.buttons[SDL_CONTROLLER_BUTTON_DPAD_RIGHT];
+}
+
 static void IN_IosPadMoveDigitalSticks( void )
 {
 	float moveThresh = 0.18f;
@@ -261,6 +269,8 @@ static void IN_IosPadMoveDigitalSticks( void )
 	float ry;
 	Sint16 rawRx;
 	Sint16 rawRy;
+	Sint16 rawLx;
+	Sint16 rawLy;
 
 	if ( in_joystickThreshold && in_joystickThreshold->value > 0.01f ) {
 		moveThresh = in_joystickThreshold->value;
@@ -269,12 +279,13 @@ static void IN_IosPadMoveDigitalSticks( void )
 		moveThresh = 0.18f;
 	}
 
+	rawLx = IN_IosPadDpadActive() ? 0 : IN_IosGetPadAxis( SDL_CONTROLLER_AXIS_LEFTX );
+	rawLy = IN_IosPadDpadActive() ? 0 : IN_IosGetPadAxis( SDL_CONTROLLER_AXIS_LEFTY );
+
 	IN_IosPadAxisDigitalKeys(
-		IN_IosGetPadAxis( SDL_CONTROLLER_AXIS_LEFTX ),
-		moveThresh, K_PAD0_LEFTSTICK_LEFT, K_PAD0_LEFTSTICK_RIGHT, &iosPadStickDir[0] );
+		rawLx, moveThresh, K_PAD0_LEFTSTICK_LEFT, K_PAD0_LEFTSTICK_RIGHT, &iosPadStickDir[0] );
 	IN_IosPadAxisDigitalKeys(
-		IN_IosGetPadAxis( SDL_CONTROLLER_AXIS_LEFTY ),
-		moveThresh, K_PAD0_LEFTSTICK_UP, K_PAD0_LEFTSTICK_DOWN, &iosPadStickDir[1] );
+		rawLy, moveThresh, K_PAD0_LEFTSTICK_UP, K_PAD0_LEFTSTICK_DOWN, &iosPadStickDir[1] );
 
 	IN_IosReleaseRightStickDigitalKeys();
 	rawRx = IN_IosGetPadAxis( SDL_CONTROLLER_AXIS_RIGHTX );
