@@ -2026,11 +2026,18 @@ CG_PlayMusic
 // Wait at least 100 ms before trying to adjust music fading volume
 #define	MUSICFADE_TIMESTEP	100
 
+static float CG_Cvar_Get( const char *cvar );
+
 void CG_PlayMusic( void ) {
 	char	parm1[MAX_QPATH], parm2[MAX_QPATH];
 	int		trackNum;
 	char	buffer[64];
 	int		fadetime;
+
+	if ( CG_Cvar_Get( "s_musicvolume" ) <= 0.0f ) {
+		trap_S_StopBackgroundTrack();
+		return;
+	}
 
 	// if it's duel and startup, don't play anything
 	if(cgs.gametype == GT_DUEL && cg.introend >= cg.time){

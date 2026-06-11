@@ -2249,6 +2249,40 @@ static void Scroll_ListBox_ThumbFunc(void *p) {
 	}
 }
 
+static float Item_Slider_ClampValue( const editFieldDef_t *editDef, float value ) {
+	float range, snap;
+
+	if ( !editDef ) {
+		return value;
+	}
+
+	range = editDef->maxVal - editDef->minVal;
+	snap = range * 0.01f;
+
+	if ( value <= editDef->minVal + snap ) {
+		return editDef->minVal;
+	}
+	if ( value >= editDef->maxVal - snap ) {
+		return editDef->maxVal;
+	}
+	if ( value < editDef->minVal ) {
+		return editDef->minVal;
+	}
+	if ( value > editDef->maxVal ) {
+		return editDef->maxVal;
+	}
+	return value;
+}
+
+static void Item_Slider_SetCvar( itemDef_t *item, editFieldDef_t *editDef, float value ) {
+	value = Item_Slider_ClampValue( editDef, value );
+	if ( value == (int)value ) {
+		DC->setCVar( item->cvar, va( "%i", (int)value ) );
+	} else {
+		DC->setCVar( item->cvar, va( "%f", value ) );
+	}
+}
+
 static void Scroll_Slider_ThumbFunc(void *p) {
 	float x, value, cursorx;
 	scrollInfo_t *si = (scrollInfo_t*)p;
@@ -2271,7 +2305,7 @@ static void Scroll_Slider_ThumbFunc(void *p) {
 	value /= SLIDER_WIDTH;
 	value *= (editDef->maxVal - editDef->minVal);
 	value += editDef->minVal;
-	DC->setCVar(si->item->cvar, va("%f", value));
+	Item_Slider_SetCvar( si->item, editDef, value );
 }
 
 void Item_StartCapture(itemDef_t *item, int key) {
@@ -2375,7 +2409,7 @@ qboolean Item_Slider_HandleKey(itemDef_t *item, int key, qboolean down) {
 						value += editDef->minVal;
 					}
 #endif
-					DC->setCVar(item->cvar, va("%f", value));
+					Item_Slider_SetCvar( item, editDef, value );
 					return qtrue;
 				}
 			}

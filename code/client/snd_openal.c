@@ -2173,6 +2173,13 @@ void S_AL_MusicUpdate( void )
 	if(!musicPlaying)
 		return;
 
+#ifdef SMOKINGUNS
+	if ( s_musicVolume->value <= 0.0f ) {
+		S_AL_StopBackgroundTrack();
+		return;
+	}
+#endif
+
 	qalGetSourcei( musicSource, AL_BUFFERS_PROCESSED, &numBuffers );
 	while( numBuffers-- )
 	{

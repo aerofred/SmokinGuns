@@ -1448,6 +1448,9 @@ void S_UpdateBackgroundTrack( void ) {
 
 	// don't bother playing anything if musicvolume is 0
 	if ( s_musicVolume->value <= 0 ) {
+		if ( s_backgroundStream ) {
+			S_Base_StopBackgroundTrack();
+		}
 		return;
 	}
 
