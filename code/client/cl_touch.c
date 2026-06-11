@@ -40,6 +40,8 @@ static qboolean touchMoveLeftDown;
 static qboolean touchMoveRightDown;
 static qboolean touchMoveForwardDown;
 static qboolean touchMoveBackDown;
+static qboolean touchTurnLeftDown;
+static qboolean touchTurnRightDown;
 static qboolean touchUIMouseDown;
 static int touchUIPendingLeftUpFrames;
 static int touchPendingFireUpFrames;
@@ -84,6 +86,14 @@ static cvar_t *in_touchMenuX;
 static cvar_t *in_touchMenuY;
 static cvar_t *in_touchConfigX;
 static cvar_t *in_touchConfigY;
+static cvar_t *in_touchFireX;
+static cvar_t *in_touchFireY;
+static cvar_t *in_touchAltFireX;
+static cvar_t *in_touchAltFireY;
+static cvar_t *in_touchAimMode;
+static cvar_t *in_touchMoveMode;
+static cvar_t *in_touchMoveHoriz;
+static cvar_t *in_touchFireMode;
 static cvar_t *in_touchDefaultsVersion;
 static cvar_t *in_touchDebug;
 static cvar_t *in_touchOpacity;
@@ -178,6 +188,26 @@ static qboolean Touch_PointNear( float x, float y, float cx, float cy, float rad
 	return dx * dx + dy * dy <= radius * radius;
 }
 
+static qboolean Touch_AimStickMode( void )
+{
+	return in_touchAimMode && in_touchAimMode->integer == 0;
+}
+
+static qboolean Touch_MoveStickMode( void )
+{
+	return in_touchMoveMode && in_touchMoveMode->integer == 0;
+}
+
+static qboolean Touch_MoveHorizTurn( void )
+{
+	return in_touchMoveHoriz && in_touchMoveHoriz->integer == 1;
+}
+
+static qboolean Touch_FireButtonsMode( void )
+{
+	return in_touchFireMode && in_touchFireMode->integer == 1;
+}
+
 static qboolean Touch_IsButtonZone( touchZone_t zone )
 {
 	return zone == TOUCH_ZONE_JUMP ||
@@ -188,7 +218,9 @@ static qboolean Touch_IsButtonZone( touchZone_t zone )
 		zone == TOUCH_ZONE_BUY ||
 		zone == TOUCH_ZONE_WEAPONS ||
 		zone == TOUCH_ZONE_MENU ||
-		zone == TOUCH_ZONE_CONFIG;
+		zone == TOUCH_ZONE_CONFIG ||
+		zone == TOUCH_ZONE_FIRE ||
+		zone == TOUCH_ZONE_ALT_FIRE;
 }
 
 static float Touch_ControlBase( void )
@@ -197,6 +229,12 @@ static float Touch_ControlBase( void )
 }
 
 static float Touch_ButtonRadius( void );
+static float Touch_StickRadius( void );
+
+static qboolean Touch_IsStickZone( touchZone_t zone )
+{
+	return zone == TOUCH_ZONE_MOVE || zone == TOUCH_ZONE_LOOK;
+}
 
 static qboolean Touch_ZoneCvars( touchZone_t zone, cvar_t **x, cvar_t **y )
 {
@@ -211,6 +249,10 @@ static qboolean Touch_ZoneCvars( touchZone_t zone, cvar_t **x, cvar_t **y )
 		case TOUCH_ZONE_WEAPONS: *x = in_touchWeaponsX; *y = in_touchWeaponsY; return qtrue;
 		case TOUCH_ZONE_MENU: *x = in_touchMenuX; *y = in_touchMenuY; return qtrue;
 		case TOUCH_ZONE_CONFIG: *x = in_touchConfigX; *y = in_touchConfigY; return qtrue;
+		case TOUCH_ZONE_FIRE: *x = in_touchFireX; *y = in_touchFireY; return qtrue;
+		case TOUCH_ZONE_ALT_FIRE: *x = in_touchAltFireX; *y = in_touchAltFireY; return qtrue;
+		case TOUCH_ZONE_MOVE: *x = in_touchMoveX; *y = in_touchMoveY; return qtrue;
+		case TOUCH_ZONE_LOOK: *x = in_touchLookX; *y = in_touchLookY; return qtrue;
 		default: return qfalse;
 	}
 }
@@ -220,7 +262,7 @@ static void Touch_SetZonePosition( touchZone_t zone, float x, float y )
 	cvar_t *xCv = NULL;
 	cvar_t *yCv = NULL;
 	float safeLeft, safeTop, safeRight, safeBottom;
-	float radius = Touch_ButtonRadius();
+	float radius = Touch_IsStickZone( zone ) ? Touch_StickRadius() : Touch_ButtonRadius();
 	float newX, newY;
 
 	if( !Touch_ZoneCvars( zone, &xCv, &yCv ) || !xCv || !yCv )
@@ -257,6 +299,14 @@ static float Touch_ButtonRadius( void )
 	if( button < 48.0f )
 		button = 48.0f;
 	return button;
+}
+
+static float Touch_StickRadius( void )
+{
+	float stick = in_touchStickSize->value * Touch_ControlBase();
+	if( stick < 72.0f )
+		stick = 72.0f;
+	return stick;
 }
 
 static float Touch_SliderX( void )
@@ -314,8 +364,7 @@ static qboolean Touch_PointOnSizeSlider( float x, float y )
 
 static touchZone_t Touch_Classify( float x, float y )
 {
-	float base = Touch_ControlBase();
-	float stick = in_touchStickSize->value * base;
+	float stick = Touch_StickRadius();
 	float button = Touch_ButtonRadius();
 
 	if( Touch_PointNear( x, y, Touch_EdgeX( in_touchConfigX ), Touch_EdgeY( in_touchConfigY ), button * 0.78f ) )
@@ -338,13 +387,28 @@ static touchZone_t Touch_Classify( float x, float y )
 		return TOUCH_ZONE_WEAPONS;
 	if( Touch_PointNear( x, y, Touch_EdgeX( in_touchMenuX ), Touch_EdgeY( in_touchMenuY ), button ) )
 		return TOUCH_ZONE_MENU;
+	if( Touch_FireButtonsMode() )
+	{
+		if( Touch_PointNear( x, y, Touch_EdgeX( in_touchFireX ), Touch_EdgeY( in_touchFireY ), button ) )
+			return TOUCH_ZONE_FIRE;
+		if( Touch_PointNear( x, y, Touch_EdgeX( in_touchAltFireX ), Touch_EdgeY( in_touchAltFireY ), button ) )
+			return TOUCH_ZONE_ALT_FIRE;
+	}
 	if( touchEditMode )
+	{
+		if( Touch_PointNear( x, y, Touch_EdgeX( in_touchMoveX ), Touch_EdgeY( in_touchMoveY ), stick ) )
+			return TOUCH_ZONE_MOVE;
+		if( Touch_PointNear( x, y, Touch_EdgeX( in_touchLookX ), Touch_EdgeY( in_touchLookY ), stick ) )
+			return TOUCH_ZONE_LOOK;
 		return TOUCH_ZONE_NONE;
-	if( x >= touchWidth * 0.5f )
-		return TOUCH_ZONE_LOOK;
-	if( Touch_PointNear( x, y, Touch_EdgeX( in_touchMoveX ), Touch_EdgeY( in_touchMoveY ), stick ) )
+	}
+	if( Touch_MoveStickMode() && Touch_PointNear( x, y, Touch_EdgeX( in_touchMoveX ), Touch_EdgeY( in_touchMoveY ), stick ) )
 		return TOUCH_ZONE_MOVE;
-	if( x < touchWidth * 0.5f )
+	if( Touch_AimStickMode() && Touch_PointNear( x, y, Touch_EdgeX( in_touchLookX ), Touch_EdgeY( in_touchLookY ), stick ) )
+		return TOUCH_ZONE_LOOK;
+	if( !Touch_AimStickMode() && x >= touchWidth * 0.5f )
+		return TOUCH_ZONE_LOOK;
+	if( !Touch_MoveStickMode() && x < touchWidth * 0.5f )
 		return TOUCH_ZONE_MOVE;
 	return TOUCH_ZONE_NONE;
 }
@@ -403,6 +467,8 @@ static void Touch_StopAllGameplay( void )
 	Touch_SetHeldCommand( &touchMoveRightDown, "+moveright", "-moveright", qfalse );
 	Touch_SetHeldCommand( &touchMoveForwardDown, "+forward", "-forward", qfalse );
 	Touch_SetHeldCommand( &touchMoveBackDown, "+back", "-back", qfalse );
+	Touch_SetHeldCommand( &touchTurnLeftDown, "+left", "-left", qfalse );
+	Touch_SetHeldCommand( &touchTurnRightDown, "+right", "-right", qfalse );
 	touchPendingFireUpFrames = 0;
 	touchPendingAltFireUpFrames = 0;
 }
@@ -425,6 +491,25 @@ static void Touch_ToggleEditMode( void )
 
 	if( !touchEditMode )
 		Cbuf_AddText( "writeconfig\n" );
+}
+
+void IN_TouchEnterEditMode( void )
+{
+	if( !touchEditMode )
+		Touch_ToggleEditMode();
+}
+
+qboolean IN_TouchEditModeActive( void )
+{
+	return touchEditMode;
+}
+
+static void Touch_OpenConfig( void )
+{
+	if( touchEditMode )
+		Touch_ToggleEditMode();
+	else
+		IOS_Layer_OpenTouchSettings();
 }
 
 #ifdef IOS
@@ -575,6 +660,14 @@ void IN_TouchApplyDefaults( void )
 	Cvar_Set( "in_touchWeaponsY", "0.10" );
 	Cvar_Set( "in_touchConfigX", "0.18" );
 	Cvar_Set( "in_touchConfigY", "0.12" );
+	Cvar_Set( "in_touchFireX", "-0.15" );
+	Cvar_Set( "in_touchFireY", "-0.22" );
+	Cvar_Set( "in_touchAltFireX", "-0.15" );
+	Cvar_Set( "in_touchAltFireY", "-0.08" );
+	Cvar_Set( "in_touchAimMode", "1" );
+	Cvar_Set( "in_touchMoveMode", "0" );
+	Cvar_Set( "in_touchMoveHoriz", "0" );
+	Cvar_Set( "in_touchFireMode", "0" );
 }
 
 void IN_TouchInit( void )
@@ -608,6 +701,14 @@ void IN_TouchInit( void )
 	in_touchMenuY = Cvar_Get( "in_touchMenuY", "0.12", CVAR_ARCHIVE );
 	in_touchConfigX = Cvar_Get( "in_touchConfigX", "0.18", CVAR_ARCHIVE );
 	in_touchConfigY = Cvar_Get( "in_touchConfigY", "0.12", CVAR_ARCHIVE );
+	in_touchFireX = Cvar_Get( "in_touchFireX", "-0.15", CVAR_ARCHIVE );
+	in_touchFireY = Cvar_Get( "in_touchFireY", "-0.22", CVAR_ARCHIVE );
+	in_touchAltFireX = Cvar_Get( "in_touchAltFireX", "-0.15", CVAR_ARCHIVE );
+	in_touchAltFireY = Cvar_Get( "in_touchAltFireY", "-0.08", CVAR_ARCHIVE );
+	in_touchAimMode = Cvar_Get( "in_touchAimMode", "1", CVAR_ARCHIVE );
+	in_touchMoveMode = Cvar_Get( "in_touchMoveMode", "0", CVAR_ARCHIVE );
+	in_touchMoveHoriz = Cvar_Get( "in_touchMoveHoriz", "0", CVAR_ARCHIVE );
+	in_touchFireMode = Cvar_Get( "in_touchFireMode", "0", CVAR_ARCHIVE );
 	in_touchDefaultsVersion = Cvar_Get( "in_touchDefaultsVersion", "0", CVAR_ARCHIVE );
 	in_touchDebug = Cvar_Get( "in_touchDebug", "0", CVAR_ARCHIVE );
 	in_touchOpacity = Cvar_Get( "in_touchOpacity", "0.34", CVAR_ARCHIVE );
@@ -868,7 +969,8 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 
 				if( finger->zone == TOUCH_ZONE_SIZE_SLIDER )
 					Touch_SetSizeFromSliderX( x );
-				else if( Touch_IsButtonZone( finger->zone ) && finger->zone != TOUCH_ZONE_CONFIG )
+				else if( ( Touch_IsButtonZone( finger->zone ) && finger->zone != TOUCH_ZONE_CONFIG ) ||
+					Touch_IsStickZone( finger->zone ) )
 					Touch_SetZonePosition( finger->zone, x + finger->editOffsetX, y + finger->editOffsetY );
 			}
 
@@ -898,7 +1000,10 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 			finger->startX = x;
 			finger->startY = y;
 			finger->zone = Touch_Classify( x, y );
-			finger->tapCandidate = finger->zone == TOUCH_ZONE_LOOK || finger->zone == TOUCH_ZONE_MOVE;
+			if( !Touch_FireButtonsMode() )
+				finger->tapCandidate = finger->zone == TOUCH_ZONE_LOOK || finger->zone == TOUCH_ZONE_MOVE;
+			else
+				finger->tapCandidate = qfalse;
 
 			if( finger->zone == TOUCH_ZONE_FIRE )
 				Touch_SetHeldKey( &touchFireDown, K_MOUSE1, qtrue );
@@ -944,8 +1049,16 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 			float tapThreshold = Touch_TapThreshold();
 			if( dx * dx + dy * dy > tapThreshold * tapThreshold )
 				finger->tapCandidate = qfalse;
-			Touch_SetHeldCommand( &touchMoveRightDown, "+moveright", "-moveright", dx > dead );
-			Touch_SetHeldCommand( &touchMoveLeftDown, "+moveleft", "-moveleft", dx < -dead );
+			if( Touch_MoveHorizTurn() && Touch_MoveStickMode() )
+			{
+				Touch_SetHeldCommand( &touchTurnRightDown, "+right", "-right", dx > dead );
+				Touch_SetHeldCommand( &touchTurnLeftDown, "+left", "-left", dx < -dead );
+			}
+			else
+			{
+				Touch_SetHeldCommand( &touchMoveRightDown, "+moveright", "-moveright", dx > dead );
+				Touch_SetHeldCommand( &touchMoveLeftDown, "+moveleft", "-moveleft", dx < -dead );
+			}
 			Touch_SetHeldCommand( &touchMoveBackDown, "+back", "-back", dy > dead );
 			Touch_SetHeldCommand( &touchMoveForwardDown, "+forward", "-forward", dy < -dead );
 		}
@@ -962,8 +1075,8 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 		if( finger->zone == TOUCH_ZONE_WEAPONS )
 			Touch_TapCommand( "weapnext" );
 		else if( finger->zone == TOUCH_ZONE_CONFIG && finger->tapCandidate )
-			Touch_ToggleEditMode();
-		else if( finger->tapCandidate )
+			Touch_OpenConfig();
+		else if( finger->tapCandidate && !Touch_FireButtonsMode() )
 		{
 			if( Touch_ConsumeSecondCombatTap( finger ) )
 				Touch_TapAltFire();
@@ -978,6 +1091,8 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 			Touch_SetHeldCommand( &touchMoveLeftDown, "+moveleft", "-moveleft", qfalse );
 			Touch_SetHeldCommand( &touchMoveBackDown, "+back", "-back", qfalse );
 			Touch_SetHeldCommand( &touchMoveForwardDown, "+forward", "-forward", qfalse );
+			Touch_SetHeldCommand( &touchTurnRightDown, "+right", "-right", qfalse );
+			Touch_SetHeldCommand( &touchTurnLeftDown, "+left", "-left", qfalse );
 		}
 
 		finger->active = qfalse;
@@ -1113,28 +1228,23 @@ void IN_TouchDraw( void )
 {
 	float stick;
 	float button;
-	float mx, my, jx, jy, cx, cy, ex, ey, rx, ry, ox, oy, bx, by, wx, wy, ux, uy, gx, gy;
+	float mx, my, lx, ly, fx, fy, ax, ay;
+	float jx, jy, cx, cy, ex, ey, rx, ry, ox, oy, bx, by, wx, wy, ux, uy, gx, gy;
+	float moveStickRadius = 0.0f;
+	float lookStickRadius = 0.0f;
+	float fireRadius = 0.0f;
+	float altFireRadius = 0.0f;
 
 	if( !in_touch || !in_touch->integer )
 	{
 		IOS_Layer_SetTouchGamepadMode( qfalse );
-		IOS_Layer_UpdateTouchControls( qfalse, 0.0f, touchMode,
-			0, 0, 0, 0, 0, 0, qfalse,
-			0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0,
-			qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse,
-			0, 0, 0, 0, 0, 0,
-			0, 0, 0, qfalse, qfalse, 0, 0, 0, 0 );
+		IOS_Layer_HideTouchControls( touchMode );
 		return;
 	}
 	if( IN_TouchInUIMode() || clc.state != CA_ACTIVE )
 	{
 		IOS_Layer_SetTouchGamepadMode( qfalse );
-		IOS_Layer_UpdateTouchControls( qfalse, 0.0f, touchMode,
-			0, 0, 0, 0, 0, 0, qfalse,
-			0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0,
-			qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse,
-			0, 0, 0, 0, 0, 0,
-			0, 0, 0, qfalse, qfalse, 0, 0, 0, 0 );
+		IOS_Layer_HideTouchControls( touchMode );
 		return;
 	}
 
@@ -1153,13 +1263,8 @@ void IN_TouchDraw( void )
 			button = 48.0f;
 
 		IOS_Layer_SetTouchGamepadMode( qtrue );
-		IOS_Layer_UpdateTouchControls( qtrue, Touch_Opacity(), touchMode,
-			0, 0, 0, 0, 0, 0, qfalse,
-			0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0,
-			qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse,
-			0, 0, 0, 0, 0, 0,
-			gx, gy, button * 0.78f, Touch_ActiveFingerForZone( TOUCH_ZONE_CONFIG ) != NULL,
-			qfalse, 0, 0, 0, 0 );
+		IOS_Layer_UpdateTouchControlsGamepadOnly( Touch_Opacity(), touchMode,
+			gx, gy, button * 0.78f, Touch_ActiveFingerForZone( TOUCH_ZONE_CONFIG ) != NULL );
 		return;
 	}
 	IOS_Layer_SetTouchGamepadMode( qfalse );
@@ -1174,6 +1279,22 @@ void IN_TouchDraw( void )
 
 	mx = Touch_EdgeX( in_touchMoveX );
 	my = Touch_EdgeY( in_touchMoveY );
+	lx = Touch_EdgeX( in_touchLookX );
+	ly = Touch_EdgeY( in_touchLookY );
+	fx = Touch_EdgeX( in_touchFireX );
+	fy = Touch_EdgeY( in_touchFireY );
+	ax = Touch_EdgeX( in_touchAltFireX );
+	ay = Touch_EdgeY( in_touchAltFireY );
+
+	if( touchEditMode || Touch_MoveStickMode() )
+		moveStickRadius = stick;
+	if( touchEditMode || Touch_AimStickMode() )
+		lookStickRadius = stick;
+	if( Touch_FireButtonsMode() )
+	{
+		fireRadius = button;
+		altFireRadius = button;
+	}
 	jx = Touch_EdgeX( in_touchJumpX );
 	jy = Touch_EdgeY( in_touchJumpY );
 	cx = Touch_EdgeX( in_touchCrouchX );
@@ -1194,9 +1315,10 @@ void IN_TouchDraw( void )
 	gy = Touch_EdgeY( in_touchConfigY );
 
 	IOS_Layer_UpdateTouchControls( qtrue, Touch_Opacity(), touchMode,
-		mx, my, stick,
-		0, 0, 0, qfalse,
-		0, 0, 0, qfalse,
+		mx, my, moveStickRadius, Touch_ActiveFingerForZone( TOUCH_ZONE_MOVE ) != NULL,
+		lx, ly, lookStickRadius, Touch_ActiveFingerForZone( TOUCH_ZONE_LOOK ) != NULL,
+		fx, fy, fireRadius, touchFireDown,
+		ax, ay, altFireRadius, touchAltFireDown,
 		jx, jy, button, touchJumpDown,
 		cx, cy, button, touchCrouchDown,
 		ex, ey, button, touchUseDown,

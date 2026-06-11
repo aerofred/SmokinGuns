@@ -1,5 +1,6 @@
 #include "ios_gamepad.h"
 #include "../client/client.h"
+#include "../client/cl_touch.h"
 #include "../sdl/sdl_input_ios_gamepad.h"
 #include "../sys/sys_local.h"
 #include "ios_gamepad_look.h"
@@ -783,6 +784,207 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 	];
 }
 
+typedef NS_ENUM(NSInteger, SGTouchSettingRow) {
+	SGTouchSettingRowAim = 0,
+	SGTouchSettingRowMove,
+	SGTouchSettingRowMoveHoriz,
+	SGTouchSettingRowFire,
+	SGTouchSettingRowEditLayout,
+	SGTouchSettingRowSensitivity
+};
+
+@interface SGTouchSettingsViewController : UITableViewController
+@end
+
+@implementation SGTouchSettingsViewController
+
+- (void)applyChrome {
+	self.tableView.backgroundColor = [UIColor colorWithRed:0.08 green:0.07 blue:0.06 alpha:1.0];
+	self.tableView.separatorColor = [UIColor colorWithWhite:1.0 alpha:0.12];
+	self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.10 green:0.08 blue:0.07 alpha:1.0];
+	self.navigationController.navigationBar.titleTextAttributes = @{
+		NSForegroundColorAttributeName: [UIColor colorWithRed:0.90 green:0.72 blue:0.18 alpha:1.0]
+	};
+}
+
+- (void)viewDidLoad {
+	[super viewDidLoad];
+	self.title = @"Touch Controls";
+	self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleGrouped];
+	[self applyChrome];
+
+	UIBarButtonItem *close = [[UIBarButtonItem alloc] initWithTitle:@"Done"
+		style:UIBarButtonItemStyleDone target:self action:@selector(closeTapped)];
+	close.tintColor = [UIColor colorWithRed:0.88 green:0.54 blue:0.16 alpha:1.0];
+	self.navigationItem.rightBarButtonItem = close;
+}
+
+- (void)closeTapped {
+	Cbuf_AddText( "writeconfig\n" );
+	[self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (BOOL)touchMoveIsStick {
+	return CL_GetCvarInt( "in_touchMoveMode" ) == 0;
+}
+
+- (NSInteger)touchSettingsRowCount {
+	return [self touchMoveIsStick] ? 6 : 5;
+}
+
+- (SGTouchSettingRow)touchSettingRowAtIndex:(NSInteger)row {
+	if ( [self touchMoveIsStick] ) {
+		return (SGTouchSettingRow)row;
+	}
+	if ( row >= SGTouchSettingRowMoveHoriz )
+		return (SGTouchSettingRow)( row + 1 );
+	return (SGTouchSettingRow)row;
+}
+
+- (UITableViewCell *)touchSegmentCellWithTitle:(NSString *)title
+	segments:(NSArray<NSString *> *)segments
+	selectedIndex:(NSInteger)selectedIndex
+	tag:(NSInteger)tag
+{
+	UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
+	cell.selectionStyle = UITableViewCellSelectionStyleNone;
+	cell.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.06];
+
+	UILabel *label = [[UILabel alloc] init];
+	label.text = title;
+	label.textColor = UIColor.whiteColor;
+	label.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+
+	UISegmentedControl *segmented = [[UISegmentedControl alloc] initWithItems:segments];
+	segmented.selectedSegmentIndex = selectedIndex;
+	segmented.tag = tag;
+	segmented.apportionsSegmentWidthsByContent = YES;
+	if ( @available(iOS 13.0, *) ) {
+		segmented.selectedSegmentTintColor = [UIColor colorWithRed:0.88 green:0.54 blue:0.16 alpha:1.0];
+		segmented.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.08];
+	}
+	[segmented setTitleTextAttributes:@{ NSForegroundColorAttributeName: UIColor.whiteColor }
+		forState:UIControlStateNormal];
+	[segmented setTitleTextAttributes:@{ NSForegroundColorAttributeName: UIColor.blackColor }
+		forState:UIControlStateSelected];
+	[segmented addTarget:self action:@selector(touchSegmentChanged:) forControlEvents:UIControlEventValueChanged];
+
+	UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[ label, segmented ]];
+	stack.axis = UILayoutConstraintAxisVertical;
+	stack.spacing = 10;
+	stack.translatesAutoresizingMaskIntoConstraints = NO;
+	[cell.contentView addSubview:stack];
+	[NSLayoutConstraint activateConstraints:@[
+		[stack.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor constant:12],
+		[stack.leadingAnchor constraintEqualToAnchor:cell.contentView.leadingAnchor constant:16],
+		[stack.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor constant:-16],
+		[stack.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor constant:-12]
+	]];
+	return cell;
+}
+
+- (void)touchSegmentChanged:(UISegmentedControl *)sender {
+	const char *value = sender.selectedSegmentIndex == 0 ? "0" : "1";
+	switch ( sender.tag ) {
+		case SGTouchSettingRowAim:
+			Cvar_Set( "in_touchAimMode", value );
+			break;
+		case SGTouchSettingRowMove:
+			Cvar_Set( "in_touchMoveMode", value );
+			[self.tableView reloadData];
+			break;
+		case SGTouchSettingRowMoveHoriz:
+			Cvar_Set( "in_touchMoveHoriz", value );
+			break;
+		case SGTouchSettingRowFire:
+			Cvar_Set( "in_touchFireMode", value );
+			break;
+		default:
+			break;
+	}
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+	return 1;
+}
+
+- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+	(void)section;
+	return @"Controls";
+}
+
+- (void)tableView:(UITableView *)tableView willDisplayHeaderView:(UIView *)view forSection:(NSInteger)section {
+	(void)section;
+	if ( [view isKindOfClass:[UITableViewHeaderFooterView class]] ) {
+		UITableViewHeaderFooterView *header = (UITableViewHeaderFooterView *)view;
+		header.textLabel.textColor = [UIColor colorWithRed:0.90 green:0.72 blue:0.18 alpha:0.85];
+	}
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+	(void)section;
+	return [self touchSettingsRowCount];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+	SGTouchSettingRow row = [self touchSettingRowAtIndex:indexPath.row];
+	if ( row == SGTouchSettingRowAim ) {
+		return [self touchSegmentCellWithTitle:@"Aim Control"
+			segments:@[ @"Stick", @"Screen" ]
+			selectedIndex:CL_GetCvarInt( "in_touchAimMode" ) == 0 ? 0 : 1
+			tag:SGTouchSettingRowAim];
+	}
+	if ( row == SGTouchSettingRowMove ) {
+		return [self touchSegmentCellWithTitle:@"Move Control"
+			segments:@[ @"Stick", @"Screen" ]
+			selectedIndex:CL_GetCvarInt( "in_touchMoveMode" ) == 0 ? 0 : 1
+			tag:SGTouchSettingRowMove];
+	}
+	if ( row == SGTouchSettingRowMoveHoriz ) {
+		return [self touchSegmentCellWithTitle:@"Move Horizontal Axis"
+			segments:@[ @"Strafe", @"Turn" ]
+			selectedIndex:CL_GetCvarInt( "in_touchMoveHoriz" ) == 0 ? 0 : 1
+			tag:SGTouchSettingRowMoveHoriz];
+	}
+	if ( row == SGTouchSettingRowFire ) {
+		return [self touchSegmentCellWithTitle:@"Fire Input"
+			segments:@[ @"1/2 Tap", @"Buttons" ]
+			selectedIndex:CL_GetCvarInt( "in_touchFireMode" ) == 0 ? 0 : 1
+			tag:SGTouchSettingRowFire];
+	}
+
+	UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
+	cell.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.06];
+	cell.textLabel.textColor = UIColor.whiteColor;
+	cell.detailTextLabel.textColor = [UIColor colorWithWhite:1.0 alpha:0.55];
+	if ( row == SGTouchSettingRowEditLayout ) {
+		cell.textLabel.text = @"Edit Button Layout";
+		cell.detailTextLabel.text = @"Move buttons and resize with the slider";
+		cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+	} else {
+		cell.textLabel.text = @"Touch Sensitivity";
+		cell.detailTextLabel.text = @"Adjust in Setup > Controls";
+		cell.selectionStyle = UITableViewCellSelectionStyleNone;
+	}
+	return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+	[tableView deselectRowAtIndexPath:indexPath animated:YES];
+	SGTouchSettingRow row = [self touchSettingRowAtIndex:indexPath.row];
+	if ( row != SGTouchSettingRowEditLayout )
+		return;
+
+	Cbuf_AddText( "writeconfig\n" );
+	__weak typeof(self) weakSelf = self;
+	[self dismissViewControllerAnimated:YES completion:^{
+		IN_TouchEnterEditMode();
+		(void)weakSelf;
+	}];
+}
+
+@end
+
 @interface SGGamepadSettingsViewController : UITableViewController
 @property (nonatomic, strong) SGGamepadCapture *capture;
 @property (nonatomic, copy) NSString *waitingForCommand;
@@ -839,6 +1041,7 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 - (void)closeTapped {
 	[self cancelCapture];
 	[SGGamepadConfig.shared persist];
+	Cbuf_AddText( "writeconfig\n" );
 	[self dismissViewControllerAnimated:YES completion:^{
 		[SGGamepadConfig.shared applyToRunningEngine];
 	}];
@@ -873,7 +1076,7 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
 	if ( section == 0 ) return 5;
-	if ( section == 5 ) return 2;
+	if ( section == 5 ) return 1;
 	NSString *sectionName = @[@"", @"Movement", @"Looking", @"Weapons", @"Misc"][section];
 	NSUInteger count = 0;
 	for ( NSDictionary *action in IOS_GamepadAllActions() ) {
@@ -978,15 +1181,11 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 	if ( indexPath.section == 5 ) {
 		UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
 		cell.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.06];
+		cell.textLabel.text = @"Touch Controls";
 		cell.textLabel.textColor = UIColor.whiteColor;
+		cell.detailTextLabel.text = @"Aim, move, fire and button layout";
 		cell.detailTextLabel.textColor = [UIColor colorWithWhite:1.0 alpha:0.55];
-		if ( indexPath.row == 0 ) {
-			cell.textLabel.text = @"Edit Touch Layout";
-			cell.detailTextLabel.text = @"Tap CFG in-game to move buttons";
-		} else {
-			cell.textLabel.text = @"Touch Sensitivity";
-			cell.detailTextLabel.text = @"Adjust in Setup > Controls";
-		}
+		cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
 		return cell;
 	}
 
@@ -1066,7 +1265,13 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 		[self presentViewController:alert animated:YES completion:nil];
 		return;
 	}
-	if ( indexPath.section == 0 || indexPath.section == 5 ) return;
+	if ( indexPath.section == 5 ) {
+		SGTouchSettingsViewController *touch = [[SGTouchSettingsViewController alloc] init];
+		[touch applyChrome];
+		[self.navigationController pushViewController:touch animated:YES];
+		return;
+	}
+	if ( indexPath.section == 0 ) return;
 
 	NSDictionary *action = [self actionsForSection:indexPath.section][indexPath.row];
 	UIAlertController *sheet = [UIAlertController alertControllerWithTitle:action[@"label"]
@@ -1104,16 +1309,31 @@ static NSArray<NSDictionary *> *IOS_GamepadAllActions( void )
 
 @end
 
+static UIViewController *IOS_PresentRootViewController( void )
+{
+	UIViewController *root = UIApplication.sharedApplication.keyWindow.rootViewController;
+	while ( root.presentedViewController ) {
+		root = root.presentedViewController;
+	}
+	return root;
+}
+
+void IOS_Touch_PresentSettings( void )
+{
+	IOS_Gamepad_OnMain( ^{
+		SGTouchSettingsViewController *settings = [[SGTouchSettingsViewController alloc] init];
+		UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:settings];
+		nav.modalPresentationStyle = UIModalPresentationFormSheet;
+		[IOS_PresentRootViewController() presentViewController:nav animated:YES completion:nil];
+	} );
+}
+
 void IOS_Gamepad_PresentSettings( void )
 {
 	IOS_Gamepad_OnMain( ^{
-		UIViewController *root = UIApplication.sharedApplication.keyWindow.rootViewController;
-		while ( root.presentedViewController ) {
-			root = root.presentedViewController;
-		}
 		SGGamepadSettingsViewController *settings = [[SGGamepadSettingsViewController alloc] init];
 		UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:settings];
 		nav.modalPresentationStyle = UIModalPresentationFormSheet;
-		[root presentViewController:nav animated:YES completion:nil];
+		[IOS_PresentRootViewController() presentViewController:nav animated:YES completion:nil];
 	} );
 }

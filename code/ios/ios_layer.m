@@ -15,6 +15,9 @@ typedef struct iosTouchOverlayState_s
 	float opacity;
 	int mode;
 	float moveX, moveY, moveRadius;
+	qboolean moveActive;
+	float lookX, lookY, lookRadius;
+	qboolean lookActive;
 	float fireX, fireY, fireRadius;
 	qboolean fireActive;
 	float altFireX, altFireY, altFireRadius;
@@ -270,6 +273,24 @@ static CGRect IOS_RectFromPixelCenter( float x, float y, float radius, CGFloat f
 				(CGFloat)y / scale - sz.height * 0.5 ) withAttributes:attrs];
 		};
 
+	void (^drawStick)( float, float, float, BOOL ) =
+		^( float x, float y, float radius, BOOL active ) {
+			if( radius <= 0.0f )
+				return;
+			CGRect borderRect = IOS_RectFromPixelCenter( x, y, radius, 1.0 );
+			CGRect knobRect = IOS_RectFromPixelCenter( x, y, radius * 0.35f, 1.0 );
+			CGFloat a = active ? MIN( alpha + 0.18, 0.88 ) : alpha * 0.75f;
+			CGContextSetFillColorWithColor( ctx, [UIColor colorWithWhite:1.0 alpha:a * 0.18].CGColor );
+			CGContextFillEllipseInRect( ctx, borderRect );
+			CGContextSetStrokeColorWithColor( ctx, [UIColor colorWithWhite:1.0 alpha:(active ? 0.72 : 0.42)].CGColor );
+			CGContextStrokeEllipseInRect( ctx, borderRect );
+			if( active )
+			{
+				CGContextSetFillColorWithColor( ctx, [UIColor colorWithWhite:1.0 alpha:0.55].CGColor );
+				CGContextFillEllipseInRect( ctx, knobRect );
+			}
+		};
+
 	if( iosTouchOverlay.gamepadMode )
 	{
 		drawButton( iosTouchOverlay.configX, iosTouchOverlay.configY, iosTouchOverlay.configRadius,
@@ -277,6 +298,18 @@ static CGRect IOS_RectFromPixelCenter( float x, float y, float radius, CGFloat f
 			iosTouchOverlay.configActive );
 		return;
 	}
+
+	drawStick( iosTouchOverlay.moveX, iosTouchOverlay.moveY, iosTouchOverlay.moveRadius,
+		iosTouchOverlay.moveActive );
+	drawStick( iosTouchOverlay.lookX, iosTouchOverlay.lookY, iosTouchOverlay.lookRadius,
+		iosTouchOverlay.lookActive );
+
+	if( iosTouchOverlay.fireRadius > 0.0f )
+		drawButton( iosTouchOverlay.fireX, iosTouchOverlay.fireY, iosTouchOverlay.fireRadius,
+			@"FIRE", [UIColor colorWithRed:0.86 green:0.30 blue:0.22 alpha:1.0], iosTouchOverlay.fireActive );
+	if( iosTouchOverlay.altFireRadius > 0.0f )
+		drawButton( iosTouchOverlay.altFireX, iosTouchOverlay.altFireY, iosTouchOverlay.altFireRadius,
+			@"ALT", [UIColor colorWithRed:0.76 green:0.28 blue:0.20 alpha:1.0], iosTouchOverlay.altFireActive );
 
 	drawButton( iosTouchOverlay.jumpX, iosTouchOverlay.jumpY, iosTouchOverlay.jumpRadius,
 		@"JUMP", [UIColor colorWithRed:0.16 green:0.70 blue:0.42 alpha:1.0], iosTouchOverlay.jumpActive );
@@ -431,7 +464,8 @@ void IOS_Layer_SetGameOverlayVisible( qboolean visible )
 }
 
 void IOS_Layer_UpdateTouchControls( qboolean visible, float opacity, int mode,
-	float moveX, float moveY, float moveRadius,
+	float moveX, float moveY, float moveRadius, qboolean moveActive,
+	float lookX, float lookY, float lookRadius, qboolean lookActive,
 	float fireX, float fireY, float fireRadius, qboolean fireActive,
 	float altFireX, float altFireY, float altFireRadius, qboolean altFireActive,
 	float jumpX, float jumpY, float jumpRadius, qboolean jumpActive,
@@ -452,6 +486,11 @@ void IOS_Layer_UpdateTouchControls( qboolean visible, float opacity, int mode,
 	iosTouchOverlay.moveX = moveX;
 	iosTouchOverlay.moveY = moveY;
 	iosTouchOverlay.moveRadius = moveRadius;
+	iosTouchOverlay.moveActive = moveActive;
+	iosTouchOverlay.lookX = lookX;
+	iosTouchOverlay.lookY = lookY;
+	iosTouchOverlay.lookRadius = lookRadius;
+	iosTouchOverlay.lookActive = lookActive;
 	iosTouchOverlay.fireX = fireX;
 	iosTouchOverlay.fireY = fireY;
 	iosTouchOverlay.fireRadius = fireRadius;
@@ -512,9 +551,36 @@ void IOS_Layer_UpdateTouchControls( qboolean visible, float opacity, int mode,
 	} );
 }
 
+void IOS_Layer_HideTouchControls( int mode )
+{
+	IOS_Layer_UpdateTouchControls( qfalse, 0.0f, mode,
+		0, 0, 0, qfalse, 0, 0, 0, qfalse,
+		0, 0, 0, qfalse, 0, 0, 0, qfalse,
+		0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse,
+		0, 0, 0, qfalse, 0, 0, 0, qfalse,
+		0, 0, 0,
+		0, 0, 0,
+		0, 0, 0, qfalse,
+		qfalse, 0, 0, 0, 0 );
+}
+
+void IOS_Layer_UpdateTouchControlsGamepadOnly( float opacity, int mode,
+	float configX, float configY, float configRadius, qboolean configActive )
+{
+	IOS_Layer_UpdateTouchControls( qtrue, opacity, mode,
+		0, 0, 0, qfalse, 0, 0, 0, qfalse,
+		0, 0, 0, qfalse, 0, 0, 0, qfalse,
+		0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse, 0, 0, 0, qfalse,
+		0, 0, 0, qfalse, 0, 0, 0, qfalse,
+		0, 0, 0,
+		0, 0, 0,
+		configX, configY, configRadius, configActive,
+		qfalse, 0, 0, 0, 0 );
+}
+
 void IOS_Layer_OpenTouchSettings( void )
 {
-	IOS_Gamepad_PresentSettings();
+	IOS_Touch_PresentSettings();
 }
 
 void IOS_Layer_SetTouchGamepadMode( qboolean gamepadMode )

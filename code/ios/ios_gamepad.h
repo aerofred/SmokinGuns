@@ -8,6 +8,7 @@ void IOS_Gamepad_Start( void );
 void IOS_Gamepad_Stop( void );
 void IOS_Gamepad_PauseForOverlay( void );
 void IOS_Gamepad_PresentSettings( void );
+void IOS_Touch_PresentSettings( void );
 void IOS_Gamepad_ApplyLaunchConfig( char *commandLine, int commandLineSize );
 void IOS_Gamepad_SetOnScreenMoveEngaged( qboolean engaged );
 qboolean IOS_Gamepad_IsConfigCaptureActive( void );

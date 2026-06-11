@@ -41,5 +41,7 @@ qboolean IN_TouchInUIMode( void );
 qboolean IN_TouchConsoleActive( void );
 void IN_TouchToggleConsole( void );
 void IN_TouchApplyDefaults( void );
+void IN_TouchEnterEditMode( void );
+qboolean IN_TouchEditModeActive( void );
 
 #endif
