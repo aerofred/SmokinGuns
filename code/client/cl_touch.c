@@ -367,7 +367,9 @@ static touchZone_t Touch_Classify( float x, float y )
 	float stick = Touch_StickRadius();
 	float button = Touch_ButtonRadius();
 
-	if( Touch_PointNear( x, y, Touch_EdgeX( in_touchConfigX ), Touch_EdgeY( in_touchConfigY ), button * 0.78f ) )
+	if( Touch_PointNear( x, y, Touch_EdgeX( in_touchMenuX ), Touch_EdgeY( in_touchMenuY ), button ) )
+		return TOUCH_ZONE_MENU;
+	if( Touch_PointNear( x, y, Touch_EdgeX( in_touchConfigX ), Touch_EdgeY( in_touchConfigY ), button ) )
 		return TOUCH_ZONE_CONFIG;
 	if( touchEditMode && Touch_PointOnSizeSlider( x, y ) )
 		return TOUCH_ZONE_SIZE_SLIDER;
@@ -385,8 +387,6 @@ static touchZone_t Touch_Classify( float x, float y )
 		return TOUCH_ZONE_BUY;
 	if( Touch_PointNear( x, y, Touch_EdgeX( in_touchWeaponsX ), Touch_EdgeY( in_touchWeaponsY ), button ) )
 		return TOUCH_ZONE_WEAPONS;
-	if( Touch_PointNear( x, y, Touch_EdgeX( in_touchMenuX ), Touch_EdgeY( in_touchMenuY ), button ) )
-		return TOUCH_ZONE_MENU;
 	if( Touch_FireButtonsMode() )
 	{
 		if( Touch_PointNear( x, y, Touch_EdgeX( in_touchFireX ), Touch_EdgeY( in_touchFireY ), button ) )
@@ -525,18 +525,28 @@ static qboolean Touch_GamepadOverridesGameplay( void )
 static void Touch_ApplyGamepadMode( qboolean gamepadMode )
 {
 	static qboolean lastGamepadMode = qfalse;
+	static qboolean lastOverlayGamepadMode = qfalse;
 	int i;
+	qboolean overlayGamepadMode = gamepadMode && !touchEditMode;
+
+	if( overlayGamepadMode != lastOverlayGamepadMode )
+	{
+		lastOverlayGamepadMode = overlayGamepadMode;
+		IOS_Layer_SetTouchGamepadMode( overlayGamepadMode );
+	}
 
 	if( gamepadMode == lastGamepadMode )
 		return;
 
 	lastGamepadMode = gamepadMode;
-	IOS_Layer_SetTouchGamepadMode( gamepadMode );
 
 	if( !gamepadMode )
 		return;
 
 	Touch_StopAllGameplay();
+	if( touchEditMode )
+		return;
+
 	touchEditMode = qfalse;
 	touchMode = TOUCH_MODE_COMBAT;
 	IN_TouchUIReset();
@@ -567,6 +577,8 @@ static void Touch_HandleGamepadConfigFinger( long long fingerId, float x, float 
 			finger->y = y;
 			finger->zone = TOUCH_ZONE_CONFIG;
 			finger->tapCandidate = qtrue;
+			finger->editOffsetX = Touch_EdgeX( in_touchConfigX ) - x;
+			finger->editOffsetY = Touch_EdgeY( in_touchConfigY ) - y;
 		}
 		else if( motion )
 		{
@@ -576,6 +588,7 @@ static void Touch_HandleGamepadConfigFinger( long long fingerId, float x, float 
 
 			if( tapDx * tapDx + tapDy * tapDy > tapThreshold * tapThreshold )
 				finger->tapCandidate = qfalse;
+			Touch_SetZonePosition( TOUCH_ZONE_CONFIG, x + finger->editOffsetX, y + finger->editOffsetY );
 			finger->x = x;
 			finger->y = y;
 		}
@@ -889,7 +902,7 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 
 #ifdef IOS
 	Touch_ApplyGamepadMode( Touch_GamepadOverridesGameplay() );
-	if( Touch_GamepadOverridesGameplay() )
+	if( Touch_GamepadOverridesGameplay() && !touchEditMode )
 	{
 		Touch_HandleGamepadConfigFinger( fingerId, x, y, down, motion );
 		return;
@@ -969,8 +982,7 @@ void IN_TouchFinger( long long fingerId, float nx, float ny, qboolean down, qboo
 
 				if( finger->zone == TOUCH_ZONE_SIZE_SLIDER )
 					Touch_SetSizeFromSliderX( x );
-				else if( ( Touch_IsButtonZone( finger->zone ) && finger->zone != TOUCH_ZONE_CONFIG ) ||
-					Touch_IsStickZone( finger->zone ) )
+				else if( Touch_IsButtonZone( finger->zone ) || Touch_IsStickZone( finger->zone ) )
 					Touch_SetZonePosition( finger->zone, x + finger->editOffsetX, y + finger->editOffsetY );
 			}
 
@@ -1253,7 +1265,7 @@ void IN_TouchDraw( void )
 #endif
 
 #ifdef IOS
-	if( Touch_GamepadOverridesGameplay() )
+	if( Touch_GamepadOverridesGameplay() && !touchEditMode )
 	{
 		float button = in_touchBtnSize->value * Touch_ControlBase();
 		float gx = Touch_EdgeX( in_touchConfigX );
@@ -1264,7 +1276,7 @@ void IN_TouchDraw( void )
 
 		IOS_Layer_SetTouchGamepadMode( qtrue );
 		IOS_Layer_UpdateTouchControlsGamepadOnly( Touch_Opacity(), touchMode,
-			gx, gy, button * 0.78f, Touch_ActiveFingerForZone( TOUCH_ZONE_CONFIG ) != NULL );
+			gx, gy, button, Touch_ActiveFingerForZone( TOUCH_ZONE_CONFIG ) != NULL );
 		return;
 	}
 	IOS_Layer_SetTouchGamepadMode( qfalse );
@@ -1326,8 +1338,8 @@ void IN_TouchDraw( void )
 		ox, oy, button, touchOpenDown,
 		bx, by, button, touchBuyDown,
 		wx, wy, button,
-		ux, uy, button * 0.78f,
-		gx, gy, button * 0.78f, Touch_ActiveFingerForZone( TOUCH_ZONE_CONFIG ) != NULL,
+		ux, uy, button,
+		gx, gy, button, Touch_ActiveFingerForZone( TOUCH_ZONE_CONFIG ) != NULL,
 		touchEditMode, Touch_SliderX(), Touch_SliderY(), Touch_SliderW(),
 		Touch_SizeSliderValue() );
 }

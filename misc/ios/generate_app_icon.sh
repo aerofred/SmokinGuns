@@ -1,40 +1,22 @@
 #!/bin/bash
-# Generate iOS app icon assets from misc/smokinguns.icns
+# Generate iOS app icon assets from misc/smokinguns.png
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-ICNS="${ROOT_DIR}/misc/smokinguns.icns"
+SOURCE="${ROOT_DIR}/misc/smokinguns.png"
 APP="$1"
 
-if [ ! -f "${ICNS}" ]; then
-	echo "error: ${ICNS} not found" >&2
+if [ ! -f "${SOURCE}" ]; then
+	echo "error: ${SOURCE} not found" >&2
 	exit 1
 fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 
-iconutil --convert iconset -o "${WORK}/master.iconset" "${ICNS}"
-
-MASTER=""
-for candidate in \
-	"${WORK}/master.iconset/icon_512x512@2x.png" \
-	"${WORK}/master.iconset/icon_512x512.png" \
-	"${WORK}/master.iconset/icon_256x256@2x.png" \
-	"${WORK}/master.iconset/icon_256x256.png" \
-	"${WORK}/master.iconset/icon_128x128@2x.png" \
-	"${WORK}/master.iconset/icon_128x128.png"; do
-	if [ -f "${candidate}" ]; then
-		MASTER="${candidate}"
-		break
-	fi
-done
-
-if [ -z "${MASTER}" ]; then
-	echo "error: no usable PNG found in ${ICNS}" >&2
-	exit 1
-fi
+MASTER="${WORK}/master.png"
+sips -z 1024 1024 "${SOURCE}" --out "${MASTER}" >/dev/null
 
 ICONSET="${WORK}/AppIcon.appiconset"
 mkdir -p "${ICONSET}"
@@ -104,4 +86,4 @@ fi
 
 cp "${ASSETS}/AppIcon.appiconset/Icon-1024.png" "${APP}/SplashIcon.png"
 
-echo "App icon generated from smokinguns.icns"
+echo "App icon generated from smokinguns.png"
