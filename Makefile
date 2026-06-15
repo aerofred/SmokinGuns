@@ -1686,6 +1686,8 @@ ifeq ($(PLATFORM),ios)
   Q3OBJ += \
     $(B)/client/sdl_input_ios.o \
     $(B)/client/sdl_input_ios_gamepad.o \
+    $(B)/client/sdl_input_keyboard.o \
+    $(B)/client/sdl_input_mouse.o \
     $(B)/client/sdl_snd_ios.o \
     $(B)/client/cl_touch.o \
     $(B)/client/ios_layer.o \
