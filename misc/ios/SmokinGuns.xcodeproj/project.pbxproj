@@ -44,6 +44,7 @@
 			buildConfigurationList = AA00000A0000000000000001 /* Build configuration list for PBXNativeTarget "SmokinGuns" */;
 			buildPhases = (
 				AA0000060000000000000001 /* Build Engine */,
+				AA00000D0000000000000001 /* Install Bundle */,
 			);
 			buildRules = (
 			);
@@ -92,10 +93,29 @@
 			);
 			name = "Build Engine";
 			outputPaths = (
+				"$(SRCROOT)/../../build/ios/SmokinGuns.app/SGClient",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "set -e\ncd \"${SRCROOT}/../..\"\nchmod +x misc/ios/build-ios.sh misc/ios/copy_game_data.sh misc/ios/setup_sdl2.sh\nif [ ! -f misc/ios/sdl2-build/libSDL2-ios.a ]; then\n  misc/ios/setup_sdl2.sh\nfi\nmisc/ios/build-ios.sh\nAPP_OUT=\"${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}\"\nrm -rf \"${APP_OUT}\"\ncp -a build/ios/SmokinGuns.app \"${APP_OUT}\"\n";
+			shellScript = "set -e\ncd \"${SRCROOT}/../..\"\ninstall_app_bundle() {\n  SRC=\"$1\"\n  DST=\"$2\"\n  PROFILE_TMP=\"\"\n  if [ -f \"${DST}/embedded.mobileprovision\" ]; then\n    PROFILE_TMP=\"$(mktemp \"${TMPDIR:-/tmp}/SmokinGunsProfile.XXXXXX\")\"\n    cp \"${DST}/embedded.mobileprovision\" \"${PROFILE_TMP}\"\n  fi\n  rm -rf \"${DST}\"\n  cp -a \"${SRC}\" \"${DST}\"\n  if [ -n \"${PROFILE_TMP}\" ]; then\n    cp \"${PROFILE_TMP}\" \"${DST}/embedded.mobileprovision\"\n    rm -f \"${PROFILE_TMP}\"\n  fi\n}\nchmod +x misc/ios/build-ios.sh misc/ios/copy_game_data.sh misc/ios/setup_sdl2.sh misc/ios/generate_app_icon.sh\nif [ ! -f misc/ios/sdl2-build/libSDL2-ios.a ]; then\n  misc/ios/setup_sdl2.sh\nfi\nmisc/ios/build-ios.sh\nif [ \"${DEPLOYMENT_POSTPROCESSING}\" != \"YES\" ]; then\n  install_app_bundle build/ios/SmokinGuns.app \"${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}\"\nfi\n";
+		};
+		AA00000D0000000000000001 /* Install Bundle */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../../build/ios/SmokinGuns.app/SGClient",
+			);
+			name = "Install Bundle";
+			outputPaths = (
+				"$(CODESIGNING_FOLDER_PATH)/SGClient",
+				"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)",
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+			shellPath = /bin/bash;
+			shellScript = "set -e\ncd \"${SRCROOT}/../..\"\ninstall_app_bundle() {\n  SRC=\"$1\"\n  DST=\"$2\"\n  PROFILE_TMP=\"\"\n  if [ -f \"${DST}/embedded.mobileprovision\" ]; then\n    PROFILE_TMP=\"$(mktemp \"${TMPDIR:-/tmp}/SmokinGunsProfile.XXXXXX\")\"\n    cp \"${DST}/embedded.mobileprovision\" \"${PROFILE_TMP}\"\n  fi\n  rm -rf \"${DST}\"\n  cp -a \"${SRC}\" \"${DST}\"\n  if [ -n \"${PROFILE_TMP}\" ]; then\n    cp \"${PROFILE_TMP}\" \"${DST}/embedded.mobileprovision\"\n    rm -f \"${PROFILE_TMP}\"\n  fi\n}\ncreate_dsym() {\n  if [ \"${DEBUG_INFORMATION_FORMAT:-}\" != \"dwarf-with-dsym\" ]; then\n    return 0\n  fi\n  if [ ! -x \"${CODESIGNING_FOLDER_PATH}/${EXECUTABLE_NAME}\" ]; then\n    return 0\n  fi\n  mkdir -p \"${DWARF_DSYM_FOLDER_PATH}\"\n  rm -rf \"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\n  dsymutil \"${CODESIGNING_FOLDER_PATH}/${EXECUTABLE_NAME}\" -o \"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\n}\nAPP_SRC=\"build/ios/SmokinGuns.app\"\nif [ ! -f \"${APP_SRC}/SGClient\" ]; then\n  chmod +x misc/ios/build-ios.sh misc/ios/copy_game_data.sh misc/ios/setup_sdl2.sh misc/ios/generate_app_icon.sh\n  misc/ios/build-ios.sh\nfi\ninstall_app_bundle \"${APP_SRC}\" \"${CODESIGNING_FOLDER_PATH}\"\ncreate_dsym\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -106,14 +126,19 @@
 				ARCHS = arm64;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FP9V6HP6Q2;
+				DEPLOYMENT_POSTPROCESSING = NO;
+				EXECUTABLE_NAME = SGClient;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "i386 x86_64";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.action-games";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.smokinguns.ios;
 				PRODUCT_NAME = SmokinGuns;
 				SDKROOT = iphoneos;
+				SKIP_INSTALL = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = app;
 			};
 			name = Debug;
 		};
@@ -123,14 +148,19 @@
 				ARCHS = arm64;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FP9V6HP6Q2;
+				DEPLOYMENT_POSTPROCESSING = YES;
+				EXECUTABLE_NAME = SGClient;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "i386 x86_64";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.action-games";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.smokinguns.ios;
 				PRODUCT_NAME = SmokinGuns;
 				SDKROOT = iphoneos;
+				SKIP_INSTALL = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = app;
 			};
 			name = Release;
 		};

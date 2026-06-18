@@ -68,54 +68,11 @@ cp -R "$ROOT/smokinguns" "$APP_DIR/smokinguns"
 cp -R "$ROOT/baseq3" "$APP_DIR/baseq3"
 cp -R "$ROOT/ui" "$APP_DIR/ui"
 
-if [ -f "$ROOT/misc/smokinguns.png" ]; then
-	cp "$ROOT/misc/smokinguns.png" "$APP_DIR/AppIcon.png"
-fi
+cp "$ROOT/misc/ios/Info.plist" "$APP_DIR/Info.plist"
 if [ -f "$ROOT/misc/ios/LaunchScreen.storyboard" ]; then
 	cp "$ROOT/misc/ios/LaunchScreen.storyboard" "$APP_DIR/LaunchScreen.storyboard"
 fi
-
-cat > "$APP_DIR/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
- "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>CFBundleDevelopmentRegion</key><string>en</string>
-	<key>CFBundleDisplayName</key><string>Smokin' Guns</string>
-	<key>CFBundleExecutable</key><string>SGClient</string>
-	<key>CFBundleIdentifier</key><string>org.smokinguns.ios</string>
-	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-	<key>CFBundleName</key><string>SmokinGuns</string>
-	<key>CFBundlePackageType</key><string>APPL</string>
-	<key>CFBundleSupportedPlatforms</key><array><string>iPhoneOS</string></array>
-	<key>CFBundleShortVersionString</key><string>1.2</string>
-	<key>CFBundleVersion</key><string>1</string>
-	<key>DTPlatformName</key><string>iphoneos</string>
-	<key>MinimumOSVersion</key><string>12.0</string>
-	<key>LSRequiresIPhoneOS</key><true/>
-	<key>UILaunchStoryboardName</key><string>LaunchScreen</string>
-	<key>UIRequiresFullScreen</key><true/>
-	<key>NSBonjourServices</key><array><string>_quake3._udp</string></array>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Smokin' Guns uses the local network for LAN multiplayer games.</string>
-	<key>UIApplicationSupportsIndirectInputEvents</key><true/>
-	<key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
-	<key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
-	<key>UIStatusBarHidden</key><true/>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UIViewControllerBasedStatusBarAppearance</key><false/>
-</dict>
-</plist>
-PLIST
+chmod +x "$ROOT/misc/ios/generate_app_icon.sh"
+"$ROOT/misc/ios/generate_app_icon.sh" "$APP_DIR"
 
 echo "Built $APP_DIR"

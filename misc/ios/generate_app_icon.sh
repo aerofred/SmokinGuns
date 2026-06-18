@@ -69,21 +69,30 @@ ASSETS="${WORK}/Assets.xcassets"
 mkdir -p "${ASSETS}"
 mv "${ICONSET}" "${ASSETS}/AppIcon.appiconset"
 
+PARTIAL_PLIST="${WORK}/partial.plist"
+DEPLOY_TARGET="${IOS_DEPLOYMENT_TARGET:-12.0}"
+
 if xcrun actool "${ASSETS}" \
 	--compile "${APP}" \
 	--platform iphoneos \
-	--minimum-deployment-target 15.0 \
+	--minimum-deployment-target "${DEPLOY_TARGET}" \
 	--app-icon AppIcon \
-	--output-partial-info-plist "${WORK}/partial.plist" >/dev/null; then
+	--output-partial-info-plist "${PARTIAL_PLIST}" >/dev/null; then
 	echo "Assets.car generated"
 else
 	echo "warning: actool failed; copying icon PNG fallback without Assets.car" >&2
 	cp "${ASSETS}/AppIcon.appiconset/Icon-120.png" "${APP}/AppIcon60x60@2x.png"
 	cp "${ASSETS}/AppIcon.appiconset/Icon-180.png" "${APP}/AppIcon60x60@3x.png"
 	cp "${ASSETS}/AppIcon.appiconset/Icon-152.png" "${APP}/AppIcon76x76@2x.png"
+	cp "${ASSETS}/AppIcon.appiconset/Icon-152.png" "${APP}/AppIcon76x76@2x~ipad.png"
 	cp "${ASSETS}/AppIcon.appiconset/Icon-1024.png" "${APP}/AppIcon.png"
 fi
 
 cp "${ASSETS}/AppIcon.appiconset/Icon-1024.png" "${APP}/SplashIcon.png"
+
+INFO_PLIST="${APP}/Info.plist"
+if [ -f "${PARTIAL_PLIST}" ] && [ -f "${INFO_PLIST}" ]; then
+	/usr/libexec/PlistBuddy -c "Merge ${PARTIAL_PLIST}" "${INFO_PLIST}" 2>/dev/null || true
+fi
 
 echo "App icon generated from smokinguns.png"

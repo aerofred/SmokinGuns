@@ -44,6 +44,7 @@ make -f Makefile -f Makefile.local \
 	PLATFORM=ios \
 	ARCH=arm64 \
 	BUILD_DIR="${IOS_BUILD}" \
+	OPTIMIZE="${IOS_OPTIMIZE:--DNDEBUG -O2 -gline-tables-only}" \
 	BUILD_SDK_DIFF=0 \
 	BUILD_CLIENT=1 BUILD_SERVER=0 \
 	BUILD_GAME_SO=0 BUILD_GAME_QVM=0 \
