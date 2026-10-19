@@ -29,7 +29,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../renderercommon/tr_common.h"
 #include "../qcommon/qcommon.h"
 
+#if SDL_MAJOR_VERSION >= 2
 extern SDL_Window *SDL_window;
+#endif
 
 /*
 =================
@@ -88,6 +90,7 @@ void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned 
 		}
 	}
 
+#if SDL_MAJOR_VERSION >= 2
 	if ( !SDL_window )
 		return;
 
@@ -95,4 +98,10 @@ void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned 
 	{
 		ri.Printf( PRINT_DEVELOPER, "SDL_SetWindowGammaRamp() failed: %s\n", SDL_GetError() );
 	}
+#else
+	if (SDL_SetGammaRamp(table[0], table[1], table[2]) < 0)
+	{
+		ri.Printf( PRINT_DEVELOPER, "SDL_SetGammaRamp() failed: %s\n", SDL_GetError() );
+	}
+#endif
 }

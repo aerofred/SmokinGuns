@@ -1745,10 +1745,7 @@ Q3R2OBJ = \
   $(B)/renderergl2/tr_sky.o \
   $(B)/renderergl2/tr_surface.o \
   $(B)/renderergl2/tr_vbo.o \
-  $(B)/renderergl2/tr_world.o \
-  \
-  $(B)/renderergl1/sdl_gamma.o \
-  $(B)/renderergl1/sdl_glimp.o
+  $(B)/renderergl2/tr_world.o
 
 Q3R2STRINGOBJ = \
   $(B)/renderergl2/glsl/bokeh_fp.o \

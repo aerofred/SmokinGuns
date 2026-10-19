@@ -64,8 +64,8 @@ function symlinkArch()
     DSTPATH="${4}"
 
     if [ ! -e "${DSTPATH}/${SRCFILE}.${EXT}" ]; then
-        echo "**** ERROR: missing ${SRCFILE}.${EXT} from ${MACOS}"
-        exit 1
+        # file not present, skip symlink creation
+        return
     fi
 
     if [ ! -d "${DSTPATH}" ]; then
@@ -141,7 +141,7 @@ IOQ3_MP_CGAME_ARCHS=""
 IOQ3_MP_GAME_ARCHS=""
 IOQ3_MP_UI_ARCHS=""
 
-BASEDIR="baseq3"
+BASEDIR="smokinguns"
 MISSIONPACKDIR="missionpack"
 
 CGAME="cgame"
@@ -150,7 +150,7 @@ UI="ui"
 
 RENDERER_OPENGL="renderer_opengl"
 
-DEDICATED_NAME="ioq3ded"
+DEDICATED_NAME="smokinguns_dedicated_bin"
 
 CGAME_NAME="${CGAME}.dylib"
 GAME_NAME="${GAME}.dylib"
@@ -160,18 +160,18 @@ RENDERER_OPENGL1_NAME="${RENDERER_OPENGL}1.dylib"
 RENDERER_OPENGL2_NAME="${RENDERER_OPENGL}2.dylib"
 
 ICNSDIR="misc"
-ICNS="quake3_flat.icns"
-PKGINFO="APPLIOQ3"
+ICNS="smokinguns.icns"
+PKGINFO="APPLSG"
 
 OBJROOT="build"
 #BUILT_PRODUCTS_DIR="${OBJROOT}/${TARGET_NAME}-darwin-${CURRENT_ARCH}"
-PRODUCT_NAME="ioquake3"
+PRODUCT_NAME="smokinguns"
 WRAPPER_EXTENSION="app"
 WRAPPER_NAME="${PRODUCT_NAME}.${WRAPPER_EXTENSION}"
 CONTENTS_FOLDER_PATH="${WRAPPER_NAME}/Contents"
 UNLOCALIZED_RESOURCES_FOLDER_PATH="${CONTENTS_FOLDER_PATH}/Resources"
 EXECUTABLE_FOLDER_PATH="${CONTENTS_FOLDER_PATH}/MacOS"
-EXECUTABLE_NAME="${PRODUCT_NAME}"
+EXECUTABLE_NAME="smokinguns_bin"
 
 # loop through the architectures to build string lists for each universal binary
 for ARCH in $SEARCH_ARCHS; do
@@ -349,27 +349,27 @@ function action()
 #
 
 # executables
-action ${BUNDLEBINDIR}/${EXECUTABLE_NAME}				"${IOQ3_CLIENT_ARCHS}"
-action ${BUNDLEBINDIR}/${DEDICATED_NAME}				"${IOQ3_SERVER_ARCHS}"
+if [ -n "${IOQ3_CLIENT_ARCHS}" ]; then action ${BUNDLEBINDIR}/${EXECUTABLE_NAME}				"${IOQ3_CLIENT_ARCHS}"; fi
+if [ -n "${IOQ3_SERVER_ARCHS}" ]; then action ${BUNDLEBINDIR}/${DEDICATED_NAME}				"${IOQ3_SERVER_ARCHS}"; fi
 
 # renderers
-action ${BUNDLEBINDIR}/${RENDERER_OPENGL1_NAME}		"${IOQ3_RENDERER_GL1_ARCHS}"
-action ${BUNDLEBINDIR}/${RENDERER_OPENGL2_NAME}		"${IOQ3_RENDERER_GL2_ARCHS}"
+if [ -n "${IOQ3_RENDERER_GL1_ARCHS}" ]; then action ${BUNDLEBINDIR}/${RENDERER_OPENGL1_NAME}		"${IOQ3_RENDERER_GL1_ARCHS}"; fi
+if [ -n "${IOQ3_RENDERER_GL2_ARCHS}" ]; then action ${BUNDLEBINDIR}/${RENDERER_OPENGL2_NAME}		"${IOQ3_RENDERER_GL2_ARCHS}"; fi
 symlinkArch "${RENDERER_OPENGL}1" "${RENDERER_OPENGL}1" "_" "${BUNDLEBINDIR}"
 symlinkArch "${RENDERER_OPENGL}2" "${RENDERER_OPENGL}2" "_" "${BUNDLEBINDIR}"
 
 # game
-action ${BUNDLEBINDIR}/${BASEDIR}/${CGAME_NAME}			"${IOQ3_CGAME_ARCHS}"
-action ${BUNDLEBINDIR}/${BASEDIR}/${GAME_NAME}			"${IOQ3_GAME_ARCHS}"
-action ${BUNDLEBINDIR}/${BASEDIR}/${UI_NAME}			"${IOQ3_UI_ARCHS}"
+if [ -n "${IOQ3_CGAME_ARCHS}" ]; then action ${BUNDLEBINDIR}/${BASEDIR}/${CGAME_NAME}			"${IOQ3_CGAME_ARCHS}"; fi
+if [ -n "${IOQ3_GAME_ARCHS}" ]; then action ${BUNDLEBINDIR}/${BASEDIR}/${GAME_NAME}			"${IOQ3_GAME_ARCHS}"; fi
+if [ -n "${IOQ3_UI_ARCHS}" ]; then action ${BUNDLEBINDIR}/${BASEDIR}/${UI_NAME}			"${IOQ3_UI_ARCHS}"; fi
 symlinkArch "${CGAME}"	"${CGAME}"	""	"${BUNDLEBINDIR}/${BASEDIR}"
 symlinkArch "${GAME}"	"${GAME}"	""	"${BUNDLEBINDIR}/${BASEDIR}"
 symlinkArch "${UI}"		"${UI}"		""	"${BUNDLEBINDIR}/${BASEDIR}"
 
 # missionpack
-action ${BUNDLEBINDIR}/${MISSIONPACKDIR}/${CGAME_NAME}	"${IOQ3_MP_CGAME_ARCHS}"
-action ${BUNDLEBINDIR}/${MISSIONPACKDIR}/${GAME_NAME}	"${IOQ3_MP_GAME_ARCHS}"
-action ${BUNDLEBINDIR}/${MISSIONPACKDIR}/${UI_NAME}		"${IOQ3_MP_UI_ARCHS}"
+if [ -n "${IOQ3_MP_CGAME_ARCHS}" ]; then action ${BUNDLEBINDIR}/${MISSIONPACKDIR}/${CGAME_NAME}	"${IOQ3_MP_CGAME_ARCHS}"; fi
+if [ -n "${IOQ3_MP_GAME_ARCHS}" ]; then action ${BUNDLEBINDIR}/${MISSIONPACKDIR}/${GAME_NAME}	"${IOQ3_MP_GAME_ARCHS}"; fi
+if [ -n "${IOQ3_MP_UI_ARCHS}" ]; then action ${BUNDLEBINDIR}/${MISSIONPACKDIR}/${UI_NAME}		"${IOQ3_MP_UI_ARCHS}"; fi
 symlinkArch "${CGAME}"	"${CGAME}"	""	"${BUNDLEBINDIR}/${MISSIONPACKDIR}"
 symlinkArch "${GAME}"	"${GAME}"	""	"${BUNDLEBINDIR}/${MISSIONPACKDIR}"
 symlinkArch "${UI}"		"${UI}"		""	"${BUNDLEBINDIR}/${MISSIONPACKDIR}"
