@@ -172,6 +172,7 @@ CONTENTS_FOLDER_PATH="${WRAPPER_NAME}/Contents"
 UNLOCALIZED_RESOURCES_FOLDER_PATH="${CONTENTS_FOLDER_PATH}/Resources"
 EXECUTABLE_FOLDER_PATH="${CONTENTS_FOLDER_PATH}/MacOS"
 EXECUTABLE_NAME="smokinguns_bin"
+DEDICATED_NAME="smokinguns_dedicated_bin"
 
 # loop through the architectures to build string lists for each universal binary
 for ARCH in $SEARCH_ARCHS; do
@@ -292,7 +293,7 @@ echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
     <key>CFBundleExecutable</key>
     <string>${EXECUTABLE_NAME}</string>
     <key>CFBundleIconFile</key>
-    <string>quake3_flat</string>
+    <string>${ICNS}</string>
     <key>CFBundleIdentifier</key>
     <string>org.ioquake.${PRODUCT_NAME}</string>
     <key>CFBundleInfoDictionaryVersion</key>
