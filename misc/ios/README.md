@@ -33,3 +33,21 @@ Produit : `build/ios/SmokinGuns.app`
 - `NSLocalNetworkUsageDescription` est dans `Info.plist`
 - Host : menu **Create Server** (listen server)
 - Les autres clients se connectent à l’IP LAN de l’hôte
+
+## Manettes et aide à la visée
+
+Les manettes utilisent le traitement natif GameController pour éviter les conflits
+avec SDL. Le stick gauche respecte le sens avant/arrière et le bouton PAD reste
+accessible lorsqu’un clavier et une souris sont connectés.
+
+Activez **Aim Assist** dans **Touch Controls** ou **Gamepad > Settings**. Les deux
+interrupteurs partagent la même option sauvegardée, désactivée par défaut :
+`seta in_aimAssist 1` (ou `0` pour désactiver).
+
+La visée tactile et le stick droit ralentissent progressivement près d’un
+adversaire visible, dans un cône de six degrés et à moins de 2048 unités.
+L’aide ignore les coéquipiers, les morts, les spectateurs et les cibles masquées
+par les murs ou portes fermées. Elle ne vise ni ne tire automatiquement.
+La souris physique et la navigation des menus conservent leur sensibilité.
+
+Tests de comportement sur le Mac : `sh misc/ios/tests/run-aim-assist.sh`.
